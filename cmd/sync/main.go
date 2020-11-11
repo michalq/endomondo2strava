@@ -70,7 +70,7 @@ func main() {
 		select {
 		case result := <-resultsChan:
 			fmt.Printf("Between %s and %s found %d workouts\n", result.From.Format("2006-01-02"), result.To.Format("2006-01-02"), len(result.Workouts))
-
+			endomondoDownloader.DownloadWorkouts(WorkoutsPath, result.Workouts, in.endomondoExportFormat)
 		case err := <-errorsChan:
 			fmt.Println("Error occured", err)
 		}
