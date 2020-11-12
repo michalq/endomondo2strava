@@ -1,12 +1,12 @@
 .PHONY: all install run clean
 
 install:
-	mkdir -p ./tmp/workouts
+	@mkdir -p ./tmp/workouts
 
 run:
-	go run cmd/sync/main.go
+	@go run cmd/sync/main.go
 
 all: install run
 
 clean:
-	rm -rf ./tmp
+	@rm -rf ./tmp

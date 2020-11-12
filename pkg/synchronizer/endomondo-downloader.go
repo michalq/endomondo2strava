@@ -55,6 +55,7 @@ func (e *EndomondoDownloader) DownloadAllBetween(startAt, endAt time.Time) {
 			for _, workout := range result.Workouts {
 				wg.Add(1)
 				go func(workoutID int64) {
+					defer wg.Done()
 					if err := e.DownloadWorkout(workoutID); err != nil {
 						fmt.Println("Err", err)
 					} else {
