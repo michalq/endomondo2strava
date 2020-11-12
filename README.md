@@ -1,16 +1,18 @@
-# Objective
+# About
+
+### Objective
 
 Synchronization of workouts from endomondo to strava.
 
-# Current status
+### Current status
 
 Creating backup of endomondo workouts, importing to strava is not done yet.
 
-# Why?
+### Why?
 
 Endomondo will die till the end of 2020 (Press F to pay respect)
 
-# Why not tapirrik
+### Why not tapiriik?
 
 Tapiriik doesn't work
 
@@ -20,3 +22,13 @@ Tapiriik doesn't work
 2. Fill with your endomondo data email/pass
 3. Set start backup and end backup date
 4. Run ```make all```
+
+# Used API's
+
+### Strava
+
+For uploading to strava is used official strava API/v3, which is documented here: https://developers.strava.com/docs/reference/.
+
+### Endomondo
+
+Endomondo doesn't have official API thus it's used session API from www, thus email/pass is required.
