@@ -49,7 +49,7 @@ func main() {
 	if _, err := endomondoClient.Authorize(in.endomondoEmail, in.endomondoPass); err != nil {
 		log.Fatalln("Err", err)
 	}
-	endomondoDownloader := synchronizer.NewEndomondoDownloader(endomondoClient)
+	endomondoDownloader := synchronizer.NewEndomondoDownloader(endomondoClient, WorkoutsPath, in.endomondoExportFormat)
 
 	// Validate input
 	startTime, err := time.Parse(time.RFC3339, in.startAt+"T00:00:00.000Z")
@@ -65,14 +65,5 @@ func main() {
 	}
 
 	// Run
-	results, resultsChan, errorsChan := endomondoDownloader.FindAllBetween(startTime, endTime)
-	for i := 0; i < results; i++ {
-		select {
-		case result := <-resultsChan:
-			fmt.Printf("Between %s and %s found %d workouts\n", result.From.Format("2006-01-02"), result.To.Format("2006-01-02"), len(result.Workouts))
-			endomondoDownloader.DownloadWorkouts(WorkoutsPath, result.Workouts, in.endomondoExportFormat)
-		case err := <-errorsChan:
-			fmt.Println("Error occured", err)
-		}
-	}
+	endomondoDownloader.DownloadAllBetween(startTime, endTime)
 }
