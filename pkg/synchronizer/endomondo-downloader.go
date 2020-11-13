@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/michalq/endo2strava/pkg/endomondo-client"
@@ -36,40 +35,55 @@ func (e *EndomondoDownloader) DownloadAllBetween(startAt, endAt time.Time) {
 	resultsChan := make(chan Result)
 	errorsChan := make(chan error)
 	startTime := startAt
-	iterations := 0
+	workoutsListRoutines := 0
 
 	for startTime.Before(endAt) {
-		iterations++
+		workoutsListRoutines++
 		endTime := startTime.AddDate(0, 1, 0)
 		go e.fetchWorkoutsBetween(startTime, endTime, resultsChan, errorsChan)
 		startTime = startTime.AddDate(0, 1, 0)
 	}
 
-	var wg sync.WaitGroup
-	workoutsDownloaded, allWorkouts := 0, 0
-	for i := 0; i < iterations; i++ {
+	workoutIDsChan := make(chan int64)
+	workoutErrorChan := make(chan error)
+	allWorkouts := 0
+	for i := 0; i < workoutsListRoutines; i++ {
 		select {
 		case result := <-resultsChan:
 			fmt.Printf("Between %s and %s found %d workouts\n", result.From.Format("2006-01-02"), result.To.Format("2006-01-02"), len(result.Workouts))
 			allWorkouts += len(result.Workouts)
 			for _, workout := range result.Workouts {
-				wg.Add(1)
-				go func(workoutID int64) {
-					defer wg.Done()
-					if err := e.DownloadWorkout(workoutID); err != nil {
-						fmt.Println("Err", err)
-					} else {
-						workoutsDownloaded++
-						fmt.Printf("Downloaded workout ID %d\t[%d / %d]\n", workoutID, workoutsDownloaded, allWorkouts)
-					}
-				}(workout.ID)
+				go e.downloadSingleWorkout(workout.ID, workoutIDsChan, workoutErrorChan)
 			}
 		case err := <-errorsChan:
 			fmt.Println("Err", err)
 		}
 	}
-	wg.Wait()
+
+	workoutsDownloaded := 0
+	for i := 0; i < allWorkouts; i++ {
+		select {
+		case workoutID := <-workoutIDsChan:
+			workoutsDownloaded++
+			fmt.Printf("Downloaded workout %d\n", workoutID)
+		case err := <-workoutErrorChan:
+			fmt.Println("Err", err)
+		}
+	}
+
 	fmt.Printf("\n---\nAll done.\nDownloaded %d workouts out of %d", workoutsDownloaded, allWorkouts)
+}
+
+func (e *EndomondoDownloader) downloadSingleWorkout(
+	workoutID int64,
+	workoutChan chan<- int64,
+	errorChan chan<- error,
+) {
+	if err := e.DownloadWorkout(workoutID); err != nil {
+		errorChan <- err
+	} else {
+		workoutChan <- workoutID
+	}
 }
 
 func (e *EndomondoDownloader) fetchWorkoutsBetween(
