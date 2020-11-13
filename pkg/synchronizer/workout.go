@@ -2,7 +2,10 @@ package synchronizer
 
 // Workout represents single workout
 type Workout struct {
-	ID   string
-	Path string
-	Ext  string
+	EndomondoID   string
+	StravaID      string
+	Path          string
+	Ext           string
+	UploadStarted int
+	UploadEnded   int
 }

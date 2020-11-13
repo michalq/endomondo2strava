@@ -4,7 +4,7 @@ install:
 	@mkdir -p ./tmp/workouts
 
 run:
-	@go run cmd/sync/main.go
+	@go run cmd/sync/config.go cmd/sync/main.go
 
 all: install run
 

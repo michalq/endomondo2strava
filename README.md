@@ -23,6 +23,52 @@ Tapiriik doesn't work
 3. Set start backup and end backup date
 4. Run ```make all```
 
+# Environments
+
+### Endomondo login data
+
+```
+ENDOMONDO_EMAIL=your@email
+ENDOMONDO_PASS=xyz
+```
+
+### Strava OAuth2.0 client id and client secret
+
+```
+STRAVA_CLIENT_ID=abcd
+STRAVA_CLIENT_SECRET=ABCD
+```
+
+### Export/import
+
+Starting point to search workouts to export
+```
+START_AT=2020-01-01
+```
+
+Ending point to search workouts to export
+```
+END_AT=2020-11-01
+```
+
+Format in which workouts will be downloaded from endomondo. 
+Possible values <GPX, TCX>.
+```
+ENDOMONDO_EXPORT_FORMAT=GPX
+```
+
+You can skip downloading part if you already have downloaded workouts by passing here just upload.
+Possible values <export, import>
+- export: runs only export from endomondo
+- import: runs only import to strava
+
+```
+// Does full synchro
+STEP=export,import
+// Only export
+STEP=export
+```
+
 # Used API's
 
 ### Strava

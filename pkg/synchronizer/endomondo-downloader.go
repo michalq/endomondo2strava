@@ -71,7 +71,7 @@ func (e *EndomondoDownloader) DownloadAllBetween(startAt, endAt time.Time) []Wor
 	for i := 0; i < allWorkouts; i++ {
 		select {
 		case workout := <-workoutsChan:
-			e.logger(fmt.Sprintf("Downloaded workout %s", workout.ID))
+			e.logger(fmt.Sprintf("Downloaded workout %s", workout.EndomondoID))
 			downloadedWorkouts = append(downloadedWorkouts, workout)
 		case err := <-workoutErrorChan:
 			e.logger(fmt.Sprintln("Err", err))
@@ -127,5 +127,5 @@ func (e *EndomondoDownloader) downloadWorkout(workoutID int64) (*Workout, error)
 	}
 	defer out.Close()
 	_, err = io.Copy(out, workoutBuf)
-	return &Workout{ID: strconv.FormatInt(workoutID, 10), Path: fullPath, Ext: strings.ToLower(e.workoutsFormat)}, nil
+	return &Workout{EndomondoID: strconv.FormatInt(workoutID, 10), StravaID: "", Path: fullPath, Ext: strings.ToLower(e.workoutsFormat)}, nil
 }

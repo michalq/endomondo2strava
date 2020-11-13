@@ -4,5 +4,6 @@ go 1.15
 
 require (
 	github.com/joho/godotenv v1.3.0
+	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/satori/go.uuid v1.2.0
 )

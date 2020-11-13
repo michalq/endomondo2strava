@@ -50,7 +50,7 @@ func (c *Client) GenerateAuthorizationURL() string {
 }
 
 // Authorize authorizes client
-func (c *Client) Authorize(code string) error {
+func (c *Client) Authorize(code string) (*Client, error) {
 
 	query := make(url.Values)
 	query.Set("grant_type", "authorization_code")
@@ -62,20 +62,19 @@ func (c *Client) Authorize(code string) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return c, err
 	}
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("api returned unexpected status code %d", resp.StatusCode)
+		return c, fmt.Errorf("api returned unexpected status code %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return c, err
 	}
 	authTokenData := &AuthTokenData{}
 	if err := json.Unmarshal(body, authTokenData); err != nil {
-		return err
+		return c, err
 	}
-	c.auth = authTokenData
-	return err
+	return &Client{ctx: c.ctx, httpClient: c.httpClient, baseURL: c.baseURL, clientID: c.clientID, clientSecret: c.clientSecret, auth: authTokenData}, nil
 }
