@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,16 +23,23 @@ type EndomondoDownloader struct {
 	endomondoClient *endomondo.Client
 	workoutsPath    string
 	workoutsFormat  string
+	logger          func(l string)
 }
 
 // NewEndomondoDownloader creates new instance
-func NewEndomondoDownloader(endomondoClient *endomondo.Client, workoutsPath, workoutsFormat string) *EndomondoDownloader {
-	return &EndomondoDownloader{endomondoClient, workoutsPath, workoutsFormat}
+func NewEndomondoDownloader(
+	endomondoClient *endomondo.Client,
+	workoutsPath,
+	workoutsFormat string,
+	logger func(l string),
+) *EndomondoDownloader {
+	return &EndomondoDownloader{endomondoClient, workoutsPath, workoutsFormat, logger}
 }
 
 // DownloadAllBetween downloads all workouts between provided dates
 // Finds month by month from start date to end date, cause endomondo has problem with longer periods
-func (e *EndomondoDownloader) DownloadAllBetween(startAt, endAt time.Time) {
+func (e *EndomondoDownloader) DownloadAllBetween(startAt, endAt time.Time) []Workout {
+	var downloadedWorkouts []Workout
 	resultsChan := make(chan Result)
 	errorsChan := make(chan error)
 	startTime := startAt
@@ -44,45 +52,47 @@ func (e *EndomondoDownloader) DownloadAllBetween(startAt, endAt time.Time) {
 		startTime = startTime.AddDate(0, 1, 0)
 	}
 
-	workoutIDsChan := make(chan int64)
+	workoutsChan := make(chan Workout)
 	workoutErrorChan := make(chan error)
 	allWorkouts := 0
 	for i := 0; i < workoutsListRoutines; i++ {
 		select {
 		case result := <-resultsChan:
-			fmt.Printf("Between %s and %s found %d workouts\n", result.From.Format("2006-01-02"), result.To.Format("2006-01-02"), len(result.Workouts))
+			e.logger(fmt.Sprintf("Between %s and %s found %d workouts", result.From.Format("2006-01-02"), result.To.Format("2006-01-02"), len(result.Workouts)))
 			allWorkouts += len(result.Workouts)
 			for _, workout := range result.Workouts {
-				go e.downloadSingleWorkout(workout.ID, workoutIDsChan, workoutErrorChan)
+				go e.downloadSingleWorkout(workout.ID, workoutsChan, workoutErrorChan)
 			}
 		case err := <-errorsChan:
 			fmt.Println("Err", err)
 		}
 	}
 
-	workoutsDownloaded := 0
 	for i := 0; i < allWorkouts; i++ {
 		select {
-		case workoutID := <-workoutIDsChan:
-			workoutsDownloaded++
-			fmt.Printf("Downloaded workout %d\n", workoutID)
+		case workout := <-workoutsChan:
+			e.logger(fmt.Sprintf("Downloaded workout %s", workout.ID))
+			downloadedWorkouts = append(downloadedWorkouts, workout)
 		case err := <-workoutErrorChan:
-			fmt.Println("Err", err)
+			e.logger(fmt.Sprintln("Err", err))
 		}
 	}
 
-	fmt.Printf("\n---\nAll done.\nDownloaded %d workouts out of %d", workoutsDownloaded, allWorkouts)
+	e.logger(fmt.Sprintf("Downloaded %d workouts out of %d", len(downloadedWorkouts), allWorkouts))
+
+	return downloadedWorkouts
 }
 
 func (e *EndomondoDownloader) downloadSingleWorkout(
 	workoutID int64,
-	workoutChan chan<- int64,
+	workoutChan chan<- Workout,
 	errorChan chan<- error,
 ) {
-	if err := e.DownloadWorkout(workoutID); err != nil {
+	workout, err := e.downloadWorkout(workoutID)
+	if err != nil {
 		errorChan <- err
 	} else {
-		workoutChan <- workoutID
+		workoutChan <- *workout
 	}
 }
 
@@ -104,20 +114,18 @@ func (e *EndomondoDownloader) fetchWorkoutsBetween(
 	resultsChan <- Result{From: startTime, To: endTime, Workouts: workouts.Data}
 }
 
-// DownloadWorkout performs downloading single workout
-func (e *EndomondoDownloader) DownloadWorkout(workoutID int64) error {
+func (e *EndomondoDownloader) downloadWorkout(workoutID int64) (*Workout, error) {
 	workoutBuf, err := e.endomondoClient.ExportWorkout(workoutID, e.workoutsFormat)
 	defer workoutBuf.Close()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fullPath := fmt.Sprintf("%s/%d.%s", e.workoutsPath, workoutID, strings.ToLower(e.workoutsFormat))
 	out, err := os.Create(fullPath)
 	if err != nil {
-		fmt.Println("Err", err)
-		return err
+		return nil, err
 	}
 	defer out.Close()
 	_, err = io.Copy(out, workoutBuf)
-	return nil
+	return &Workout{ID: strconv.FormatInt(workoutID, 10), Path: fullPath, Ext: strings.ToLower(e.workoutsFormat)}, nil
 }
