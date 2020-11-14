@@ -18,3 +18,12 @@ type UploadParameters struct {
 	// ExternalID The desired external identifier of the resulting activity.
 	ExternalID string
 }
+
+// UploadResponse response after successful upload
+type UploadResponse struct {
+	ID         string `json:"id_str"`
+	ExternalID int64  `json:"external_id"`
+	Error      string `json:"error"`
+	Status     string `json:"status"`
+	ActivityID int64  `json:"activity_id"`
+}

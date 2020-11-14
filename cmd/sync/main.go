@@ -61,7 +61,6 @@ func main() {
 	endomondoDownloader := synchronizer.NewEndomondoDownloader(endomondoClient, WorkoutsPath, config.endomondoExportFormat, func(l string) { fmt.Println(l) })
 
 	stravaClient := strava.NewClient(ctx, httpClient, "https://www.strava.com", config.stravaClientID, config.stravaClientSecret)
-	stravaUploader := synchronizer.NewStravaUploader(stravaClient)
 	db, err := sql.Open("sqlite3", "file:./tmp/db.sqlite")
 	if err != nil {
 		log.Fatalf("Database connection failed (%s).\n", err)
@@ -93,6 +92,7 @@ func main() {
 	} else {
 		fmt.Println("Strava authorized successfully!")
 	}
+	stravaUploader := synchronizer.NewStravaUploader(stravaClient)
 
 	// Run
 	fmt.Println("---")
@@ -110,8 +110,23 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error fetching workouts from db (%s)", err)
 		}
-		uploaded := stravaUploader.UploadAll(workouts)
-		fmt.Printf("\n---\nSynchronized %d/%d workouts\n", uploaded, len(workouts))
+		var toImport []synchronizer.Workout
+		for _, workout := range workouts {
+			if workout.UploadStarted == 0 {
+				toImport = append(toImport, workout)
+			}
+		}
+		uploaded, err := stravaUploader.UploadAll(toImport)
+		if err != nil {
+			fmt.Println(err)
+		}
+		for _, workout := range uploaded {
+			if err := workoutsRepository.Update(&workout); err != nil {
+				fmt.Println("Err", err)
+			}
+		}
+		// TODO verify started import whether ended
+		fmt.Printf("\n---\nSynchronized %d/%d workouts\n", len(uploaded)+(len(workouts)-len(toImport)), len(workouts))
 	} else {
 		fmt.Println("Skipping import")
 	}
