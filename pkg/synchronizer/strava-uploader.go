@@ -8,16 +8,41 @@ import (
 
 // StravaUploader uploads workouts into strava
 type StravaUploader struct {
-	stravaClient *strava.Client
+	stravaClient       *strava.Client
+	workoutsRepository Workouts
 }
 
 // NewStravaUploader creates instance of StravaUploader
-func NewStravaUploader(stravaClient *strava.Client) *StravaUploader {
-	return &StravaUploader{stravaClient}
+func NewStravaUploader(stravaClient *strava.Client, workoutsRepository Workouts) *StravaUploader {
+	return &StravaUploader{stravaClient, workoutsRepository}
 }
 
 // UploadAll uploads all provided workouts to strava
-func (s *StravaUploader) UploadAll(workouts []Workout) ([]Workout, error) {
+func (s *StravaUploader) UploadAll() ([]Workout, error) {
+	workouts, err := s.workoutsRepository.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	var toImport []Workout
+	for _, workout := range workouts {
+		if workout.UploadStarted == 0 {
+			toImport = append(toImport, workout)
+		}
+	}
+
+	uploaded, err := s.uploadMany(workouts)
+	if len(uploaded) == 0 && err != nil {
+		return nil, err
+	}
+	for _, workout := range uploaded {
+		if err := s.workoutsRepository.Update(&workout); err != nil {
+			fmt.Println("Err", err)
+		}
+	}
+	return uploaded, err
+}
+
+func (s *StravaUploader) uploadMany(workouts []Workout) ([]Workout, error) {
 	var uploaded []Workout
 	for _, workout := range workouts {
 		uploadResponse, err := s.stravaClient.ImportWorkout(strava.UploadParameters{

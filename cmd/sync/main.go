@@ -92,7 +92,7 @@ func main() {
 	} else {
 		fmt.Println("Strava authorized successfully!")
 	}
-	stravaUploader := synchronizer.NewStravaUploader(stravaClient)
+	stravaUploader := synchronizer.NewStravaUploader(stravaClient, workoutsRepository)
 
 	// Run
 	fmt.Println("---")
@@ -106,24 +106,9 @@ func main() {
 	}
 
 	if config.step.Has(synchronizer.StepImport) {
-		workouts, err := workoutsRepository.FindAll()
-		if err != nil {
-			log.Fatalf("Error fetching workouts from db (%s)", err)
-		}
-		var toImport []synchronizer.Workout
-		for _, workout := range workouts {
-			if workout.UploadStarted == 0 {
-				toImport = append(toImport, workout)
-			}
-		}
-		uploaded, err := stravaUploader.UploadAll(toImport)
+		uploaded, err := stravaUploader.UploadAll()
 		if err != nil {
 			fmt.Println(err)
-		}
-		for _, workout := range uploaded {
-			if err := workoutsRepository.Update(&workout); err != nil {
-				fmt.Println("Err", err)
-			}
 		}
 		// TODO verify started import whether ended
 		fmt.Printf("\n---\nSynchronized %d/%d workouts\n", len(uploaded)+(len(workouts)-len(toImport)), len(workouts))

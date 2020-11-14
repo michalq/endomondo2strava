@@ -61,7 +61,7 @@ func (w *Workouts) Save(workout *synchronizer.Workout) error {
 // Update saves single workout in db
 func (w *Workouts) Update(workout *synchronizer.Workout) error {
 	stmt, _ := w.db.Prepare("UPDATE workouts SET strava_id = ?, path = ?, ext = ?, upload_started = ?, upload_ended = ? WHERE endomondo_id = ?")
-	_, err := stmt.Exec(workout.StravaID, workout.Path, workout.Ext, 0, 0, workout.EndomondoID)
+	_, err := stmt.Exec(workout.StravaID, workout.Path, workout.Ext, workout.UploadStarted, workout.UploadEnded, workout.EndomondoID)
 	return err
 }
 

@@ -9,7 +9,7 @@ type Workouts interface {
 	// Update updates single workout
 	Update(workout *Workout) error
 	// FindAll retrieve all workouts
-	FindAll() ([]Workouts, error)
+	FindAll() ([]Workout, error)
 	// FindOneByEndomondoID finds one workout by endomondo id
 	FindOneByEndomondoID(endomondoID string) (*Workout, error)
 }
