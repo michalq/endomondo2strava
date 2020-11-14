@@ -86,4 +86,5 @@ It tracks in sqlite what was imported, and what not, so shouldn't. Strava seems 
 # TODO
 
 1. Saving access token and refresh token for strava to not ask for code every time app is running,
-2. Verification if import ended
+2. Dockerize it,
+3. Verification if import ended
