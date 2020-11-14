@@ -6,6 +6,16 @@ import (
 	"github.com/michalq/endo2strava/pkg/strava-client"
 )
 
+// UploadStatus status of current import
+type UploadStatus struct {
+	// Uploaded in current run
+	Uploaded int
+	// Skipped due to pending import
+	Skipped int
+	// All workouts imported and not imported
+	All int
+}
+
 // StravaUploader uploads workouts into strava
 type StravaUploader struct {
 	stravaClient       *strava.Client
@@ -18,7 +28,7 @@ func NewStravaUploader(stravaClient *strava.Client, workoutsRepository Workouts)
 }
 
 // UploadAll uploads all provided workouts to strava
-func (s *StravaUploader) UploadAll() ([]Workout, error) {
+func (s *StravaUploader) UploadAll() (*UploadStatus, error) {
 	workouts, err := s.workoutsRepository.FindAll()
 	if err != nil {
 		return nil, err
@@ -39,7 +49,11 @@ func (s *StravaUploader) UploadAll() ([]Workout, error) {
 			fmt.Println("Err", err)
 		}
 	}
-	return uploaded, err
+	return &UploadStatus{
+		Uploaded: len(uploaded),
+		All:      len(workouts),
+		Skipped:  len(workouts) - len(toImport),
+	}, err
 }
 
 func (s *StravaUploader) uploadMany(workouts []Workout) ([]Workout, error) {

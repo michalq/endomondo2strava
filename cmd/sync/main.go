@@ -57,6 +57,8 @@ func main() {
 	endomondoClient := endomondo.NewClient(ctx, httpClient, "https://www.endomondo.com")
 	if _, err := endomondoClient.Authorize(config.endomondoEmail, config.endomondoPass); err != nil {
 		log.Fatalf("Endomondo authorization failed (%s).\n", err)
+	} else {
+		fmt.Println("Endomondo authorized successfully!")
 	}
 	endomondoDownloader := synchronizer.NewEndomondoDownloader(endomondoClient, WorkoutsPath, config.endomondoExportFormat, func(l string) { fmt.Println(l) })
 
@@ -106,12 +108,12 @@ func main() {
 	}
 
 	if config.step.Has(synchronizer.StepImport) {
-		uploaded, err := stravaUploader.UploadAll()
+		status, err := stravaUploader.UploadAll()
 		if err != nil {
 			fmt.Println(err)
 		}
 		// TODO verify started import whether ended
-		fmt.Printf("\n---\nSynchronized %d/%d workouts\n", len(uploaded)+(len(workouts)-len(toImport)), len(workouts))
+		fmt.Printf("\n---\nUploaded: %d, Skipped: %d (due to pending or ended import), All: %d\n", status.Uploaded, status.Skipped, status.All)
 	} else {
 		fmt.Println("Skipping import")
 	}

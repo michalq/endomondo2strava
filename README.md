@@ -4,17 +4,13 @@
 
 Synchronization of workouts from endomondo to strava.
 
-### Current status
-
-Creating backup of endomondo workouts, importing to strava is not done yet.
-
 ### Why?
 
 Endomondo will die till the end of 2020 (Press F to pay respect)
 
 ### Why not tapiriik?
 
-Tapiriik doesn't work
+Tapiriik doesn't work, google says that not just for me…
 
 # Booting up
 
@@ -67,6 +63,8 @@ Possible values <export, import>
 STEP=export,import
 // Only export
 STEP=export
+// Only import
+STEP=import
 ```
 
 # Used API's
@@ -78,3 +76,14 @@ For uploading to strava is used official strava API/v3, which is documented here
 ### Endomondo
 
 Endomondo doesn't have official API thus it's used session API from www, thus email/pass is required.
+
+# Q
+
+1. Does it duplicate my workouts.
+
+It tracks in sqlite what was imported, and what not, so shouldn't. Strava seems to have also a security check for uploading same workouts many times. 
+
+# TODO
+
+1. Saving access token and refresh token for strava to not ask for code every time app is running,
+2. Verification if import ended

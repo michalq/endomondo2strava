@@ -3,7 +3,7 @@ package synchronizer
 // Workouts is an repository for workouts export/import data
 type Workouts interface {
 	// SaveAll save all workouts
-	SaveAll(workouts []Workout) (duplicated int, added int, err error)
+	SaveAll(workouts []Workout) error
 	// Save persist single workout
 	Save(workout *Workout) error
 	// Update updates single workout
