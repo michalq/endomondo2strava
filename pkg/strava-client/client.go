@@ -88,6 +88,9 @@ func (c *Client) ImportWorkout(upload UploadParameters) (*UploadResponse, error)
 	}
 	if resp.StatusCode == http.StatusCreated {
 		uploadResponse := &UploadResponse{}
+		if err := json.Unmarshal(respBody, uploadResponse); err != nil {
+			return nil, err
+		}
 		return uploadResponse, nil
 	}
 

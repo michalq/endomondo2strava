@@ -40,7 +40,7 @@ func (s *StravaUploader) UploadAll() (*UploadStatus, error) {
 		}
 	}
 
-	uploaded, err := s.uploadMany(workouts)
+	uploaded, err := s.uploadMany(toImport)
 	if len(uploaded) == 0 && err != nil {
 		return nil, err
 	}
@@ -74,7 +74,6 @@ func (s *StravaUploader) uploadMany(workouts []Workout) ([]Workout, error) {
 		workout.StravaID = uploadResponse.ID
 		workout.UploadStarted = 1
 		uploaded = append(uploaded, workout)
-		return uploaded, nil
 	}
 	return uploaded, nil
 }
