@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 // ScopeActivityWrite Access to create manual activities and uploads, and access to edit any activities that are visible to the app, based on activity read access level
@@ -109,6 +110,31 @@ func (c *Client) GenerateAuthorizationURL() string {
 	return fmt.Sprintf("%s/oauth/authorize?%s", c.baseURL, query.Encode())
 }
 
+// AuthorizeDirectly authorize directly with prepared token data, skipping granting access
+func (c *Client) AuthorizeDirectly(tokenData *AuthTokenData) (*Client, error) {
+
+	expiresAt := time.Unix(tokenData.ExpiresAt, 0)
+	if expiresAt.After(time.Now()) {
+		return &Client{ctx: c.ctx, httpClient: c.httpClient, baseURL: c.baseURL, clientID: c.clientID, clientSecret: c.clientSecret, auth: tokenData}, nil
+	}
+	query := make(url.Values)
+	query.Set("grant_type", "refresh_token")
+	query.Set("client_id", c.clientID)
+	query.Set("client_secret", c.clientSecret)
+	query.Set("refresh_token", tokenData.RefreshToken)
+
+	authTokenData, err := c.makeAuthRequest(query)
+	if err != nil {
+		return c, err
+	}
+	return &Client{ctx: c.ctx, httpClient: c.httpClient, baseURL: c.baseURL, clientID: c.clientID, clientSecret: c.clientSecret, auth: authTokenData}, nil
+}
+
+// Authorization returns authorization data
+func (c *Client) Authorization() *AuthTokenData {
+	return c.auth
+}
+
 // Authorize authorizes client
 func (c *Client) Authorize(code string) (*Client, error) {
 
@@ -117,24 +143,32 @@ func (c *Client) Authorize(code string) (*Client, error) {
 	query.Set("client_id", c.clientID)
 	query.Set("client_secret", c.clientSecret)
 	query.Set("code", code)
+	authTokenData, err := c.makeAuthRequest(query)
+	if err != nil {
+		return c, err
+	}
+	return &Client{ctx: c.ctx, httpClient: c.httpClient, baseURL: c.baseURL, clientID: c.clientID, clientSecret: c.clientSecret, auth: authTokenData}, nil
+}
+
+func (c *Client) makeAuthRequest(query url.Values) (*AuthTokenData, error) {
 	apiURL := fmt.Sprintf("%s/api/v3/oauth/token", c.baseURL)
 	req, _ := http.NewRequestWithContext(c.ctx, "POST", apiURL, strings.NewReader(query.Encode()))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return c, err
-	}
-	if resp.StatusCode != 200 {
-		return c, fmt.Errorf("api returned unexpected status code %d", resp.StatusCode)
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return c, err
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("api returned unexpected status code %d (%s)", resp.StatusCode, string(body))
 	}
 	authTokenData := &AuthTokenData{}
 	if err := json.Unmarshal(body, authTokenData); err != nil {
-		return c, err
+		return nil, err
 	}
-	return &Client{ctx: c.ctx, httpClient: c.httpClient, baseURL: c.baseURL, clientID: c.clientID, clientSecret: c.clientSecret, auth: authTokenData}, nil
+	return authTokenData, nil
 }

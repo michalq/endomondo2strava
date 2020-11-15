@@ -1,5 +1,15 @@
 package synchronizer
 
+// Workout represents single workout
+type Workout struct {
+	EndomondoID   string
+	StravaID      string
+	Path          string
+	Ext           string
+	UploadStarted int
+	UploadEnded   int
+}
+
 // Workouts is an repository for workouts export/import data
 type Workouts interface {
 	// SaveAll save all workouts

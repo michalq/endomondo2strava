@@ -23,6 +23,8 @@ import (
 const (
 	// WorkoutsPath stores path where workouts will be downloaded
 	WorkoutsPath = "./tmp/workouts"
+	// UserID in single context runtime this value doesn't matter, it is generated randomly
+	UserID = "9b85e5d7-6a4a-4c07-82bd-67c2f7e920d5"
 )
 
 var (
@@ -33,7 +35,6 @@ var (
 func main() {
 	// Loading input
 	fmt.Println("Hello world!")
-	fmt.Println("---")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -57,8 +58,6 @@ func main() {
 	endomondoClient := endomondo.NewClient(ctx, httpClient, "https://www.endomondo.com")
 	if _, err := endomondoClient.Authorize(config.endomondoEmail, config.endomondoPass); err != nil {
 		log.Fatalf("Endomondo authorization failed (%s).\n", err)
-	} else {
-		fmt.Println("Endomondo authorized successfully!")
 	}
 	endomondoDownloader := synchronizer.NewEndomondoDownloader(endomondoClient, WorkoutsPath, config.endomondoExportFormat, func(l string) { fmt.Println(l) })
 
@@ -71,28 +70,53 @@ func main() {
 		log.Fatalf("Migrations fail (%s).", err)
 	}
 	workoutsRepository := dao.NewWorkouts(db)
+	usersRepository := dao.NewUsers(db)
+
 	// Validate input
 	startTime, err := time.Parse(time.RFC3339, config.startAt+"T00:00:00.000Z")
 	if err != nil {
-		log.Fatalln("Err", err)
+		log.Fatalln("Input error", err)
 	}
 	endTime, err := time.Parse(time.RFC3339, config.endAt+"T00:00:00.000Z")
 	if err != nil {
-		log.Fatalln("Err", err)
+		log.Fatalln("Input error", err)
 	}
 	if config.endomondoExportFormat != string(endomondo.ExportFormatGPX) && config.endomondoExportFormat != string(endomondo.ExportFormatTCX) {
 		log.Fatalf("Format not supported, supported format [%s, %s]", endomondo.ExportFormatTCX, endomondo.ExportFormatGPX)
 	}
 
-	fmt.Printf("Grant access to strava:\n%s\n\n...and copy code that will be after ?code= in redirected url:\n", stravaClient.GenerateAuthorizationURL())
-	stravaCode := bufio.NewScanner(os.Stdin)
-	stravaCode.Scan()
-	fmt.Println("---")
-	stravaClient, err = stravaClient.Authorize(stravaCode.Text())
+	// Find user for synchronization session
+	user, err := usersRepository.FindOneByID(UserID)
 	if err != nil {
-		fmt.Println("Err", err)
+		log.Fatalf("Couldn't find user (%s).", err)
+	}
+	if user == nil {
+		user = &synchronizer.User{ID: UserID, StravaAccessExpiresAt: 0, StravaAccessToken: "", StravaRefreshToken: ""}
+		usersRepository.Save(user)
+	}
+	if user.StravaAccessToken != "" {
+		stravaClient, err = stravaClient.AuthorizeDirectly(&strava.AuthTokenData{
+			AccessToken:  user.StravaAccessToken,
+			RefreshToken: user.StravaRefreshToken,
+			ExpiresAt:    user.StravaAccessExpiresAt,
+		})
+		if err != nil {
+			log.Fatalf("Strava authorization fail (%s).", err)
+		}
 	} else {
-		fmt.Println("Strava authorized successfully!")
+		fmt.Printf("Grant access to strava:\n%s\n\n...and copy code that will be after ?code= in redirected url:\n", stravaClient.GenerateAuthorizationURL())
+		stravaCode := bufio.NewScanner(os.Stdin)
+		stravaCode.Scan()
+		stravaClient, err = stravaClient.Authorize(stravaCode.Text())
+		if err != nil {
+			log.Fatalf("Strava authorization fail (%s).", err)
+		}
+	}
+	user.StravaRefreshToken = stravaClient.Authorization().AccessToken
+	user.StravaAccessToken = stravaClient.Authorization().RefreshToken
+	user.StravaAccessExpiresAt = stravaClient.Authorization().ExpiresAt
+	if err := usersRepository.Update(user); err != nil {
+		log.Fatalf("Cannot update user (%s)", err)
 	}
 	stravaUploader := synchronizer.NewStravaUploader(stravaClient, workoutsRepository)
 
