@@ -55,11 +55,12 @@ func main() {
 	}
 
 	// Loading deps
+	simpleLogger := func(l string) { fmt.Println(l) }
 	endomondoClient := endomondo.NewClient(ctx, httpClient, "https://www.endomondo.com")
 	if _, err := endomondoClient.Authorize(config.endomondoEmail, config.endomondoPass); err != nil {
 		log.Fatalf("Endomondo authorization failed (%s).\n", err)
 	}
-	endomondoDownloader := synchronizer.NewEndomondoDownloader(endomondoClient, WorkoutsPath, config.endomondoExportFormat, func(l string) { fmt.Println(l) })
+	endomondoDownloader := synchronizer.NewEndomondoDownloader(endomondoClient, WorkoutsPath, config.endomondoExportFormat, simpleLogger)
 
 	stravaClient := strava.NewClient(ctx, httpClient, "https://www.strava.com", config.stravaClientID, config.stravaClientSecret)
 	db, err := sql.Open("sqlite3", "file:./tmp/db.sqlite")
@@ -118,11 +119,12 @@ func main() {
 	if err := usersRepository.Update(user); err != nil {
 		log.Fatalf("Cannot update user (%s)", err)
 	}
-	stravaUploader := synchronizer.NewStravaUploader(stravaClient, workoutsRepository)
+	stravaUploader := synchronizer.NewStravaUploader(stravaClient, workoutsRepository, simpleLogger)
 
 	// Run
 	fmt.Println("---")
 	if config.step.Has(synchronizer.StepExport) {
+		fmt.Println("Starting export")
 		workouts := endomondoDownloader.DownloadAllBetween(startTime, endTime)
 		if err := workoutsRepository.SaveAll(workouts); err != nil {
 			fmt.Println("Error while saving workouts to db", err)
@@ -132,6 +134,7 @@ func main() {
 	}
 
 	if config.step.Has(synchronizer.StepImport) {
+		fmt.Println("Starting import")
 		status, err := stravaUploader.UploadAll()
 		if err != nil {
 			fmt.Println(err)

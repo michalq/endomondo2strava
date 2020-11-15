@@ -20,11 +20,12 @@ type UploadStatus struct {
 type StravaUploader struct {
 	stravaClient       *strava.Client
 	workoutsRepository Workouts
+	logger             func(string)
 }
 
 // NewStravaUploader creates instance of StravaUploader
-func NewStravaUploader(stravaClient *strava.Client, workoutsRepository Workouts) *StravaUploader {
-	return &StravaUploader{stravaClient, workoutsRepository}
+func NewStravaUploader(stravaClient *strava.Client, workoutsRepository Workouts, logger func(string)) *StravaUploader {
+	return &StravaUploader{stravaClient, workoutsRepository, logger}
 }
 
 // UploadAll uploads all provided workouts to strava
@@ -57,23 +58,43 @@ func (s *StravaUploader) UploadAll() (*UploadStatus, error) {
 }
 
 func (s *StravaUploader) uploadMany(workouts []Workout) ([]Workout, error) {
-	var uploaded []Workout
+	uploadedChan := make(chan Workout)
+	errorsChan := make(chan error)
 	for _, workout := range workouts {
-		uploadResponse, err := s.stravaClient.ImportWorkout(strava.UploadParameters{
-			ExternalID:  workout.EndomondoID,
-			Name:        fmt.Sprintf("Endomondo %s", workout.EndomondoID),
-			Description: fmt.Sprintf("Workout imported from endomondo"),
-			File:        workout.Path,
-			Commute:     "0",
-			DataType:    workout.Ext,
-			Trainer:     "0",
-		})
-		if err != nil {
+		go s.uploadSingleWorkout(workout, uploadedChan, errorsChan)
+	}
+	var uploaded []Workout
+	for range workouts {
+		select {
+		case workout := <-uploadedChan:
+			uploaded = append(uploaded, workout)
+			s.logger(fmt.Sprintf("Send workout to strava, endomondo id %s, strava id %s", workout.EndomondoID, workout.StravaID))
+		case err := <-errorsChan:
 			return nil, err
 		}
-		workout.StravaID = uploadResponse.ID
-		workout.UploadStarted = 1
-		uploaded = append(uploaded, workout)
 	}
 	return uploaded, nil
+}
+
+func (s *StravaUploader) uploadSingleWorkout(
+	workout Workout,
+	uploadedChan chan<- Workout,
+	errorsChan chan<- error,
+) {
+	uploadResponse, err := s.stravaClient.ImportWorkout(strava.UploadParameters{
+		ExternalID:  workout.EndomondoID,
+		Name:        fmt.Sprintf("Endomondo %s", workout.EndomondoID),
+		Description: fmt.Sprintf("Workout imported from endomondo"),
+		File:        workout.Path,
+		Commute:     "0",
+		DataType:    workout.Ext,
+		Trainer:     "0",
+	})
+	if err != nil {
+		errorsChan <- err
+		return
+	}
+	workout.StravaID = uploadResponse.ID
+	workout.UploadStarted = 1
+	uploadedChan <- workout
 }
