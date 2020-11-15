@@ -1,0 +1,6 @@
+language: go
+dist: xenial
+os:
+- linux
+go:
+- 1.15
