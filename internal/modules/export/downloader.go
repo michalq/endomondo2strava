@@ -92,5 +92,8 @@ func (e *Downloader) downloadWorkout(authorizedClient *endomondo.Client, format 
 	}
 	defer out.Close()
 	_, err = io.Copy(out, workoutBuf)
-	return &workouts.Workout{EndomondoID: workout.EndomondoID, StravaID: "", Path: fullPath, Ext: strings.ToLower(format)}, nil
+
+	workout.Path = fullPath
+	workout.Ext = strings.ToLower(format)
+	return &workout, nil
 }

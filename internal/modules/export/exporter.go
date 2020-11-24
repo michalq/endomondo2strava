@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/michalq/endo2strava/internal/modules/workouts"
 	"github.com/michalq/endo2strava/pkg/endomondo-client"
@@ -21,11 +22,12 @@ type Status struct {
 type Exporter struct {
 	endomondoDownloader *Downloader
 	workoutsRepository  workouts.Workouts
+	logger              func(l string)
 }
 
 // NewExporter creates new instance of Exporter
-func NewExporter(endomondoDownloader *Downloader, workoutsRepository workouts.Workouts) *Exporter {
-	return &Exporter{endomondoDownloader, workoutsRepository}
+func NewExporter(endomondoDownloader *Downloader, workoutsRepository workouts.Workouts, logger func(l string)) *Exporter {
+	return &Exporter{endomondoDownloader, workoutsRepository, logger}
 }
 
 // RetrieveWorkouts finds and save in database all existing workouts and save workout file in given format
@@ -34,6 +36,10 @@ func (e *Exporter) RetrieveWorkouts(authorizedClient *endomondo.Client, format s
 	status := &Status{}
 	allWorkouts, err := e.fetchAllWorkoutsByPage(authorizedClient, 100)
 	status.All = len(allWorkouts)
+	if err != nil {
+		return nil, err
+	}
+	allWorkouts, err = e.RetrieveDetails(authorizedClient, allWorkouts)
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +58,46 @@ func (e *Exporter) RetrieveWorkouts(authorizedClient *endomondo.Client, format s
 }
 
 // RetrieveDetails search workout by workout to retrieve rest of necessary data like title, description, pictures etc
-func (e *Exporter) RetrieveDetails(authorizedClient *endomondo.Client) error {
-	return nil
+func (e *Exporter) RetrieveDetails(authorizedClient *endomondo.Client, allWorkouts []workouts.Workout) ([]workouts.Workout, error) {
+
+	workoutsChan := make(chan workouts.Workout)
+	workoutErrChan := make(chan error)
+	var processed []workouts.Workout
+	for _, workout := range allWorkouts {
+		go func(workout workouts.Workout, workoutsChan chan<- workouts.Workout, workoutErrChan chan<- error) {
+			if workout.DetailsExported == 1 {
+				workoutsChan <- workout
+				return
+			}
+			details, err := authorizedClient.Workout(workout.EndomondoIDAsInt())
+			if err != nil {
+				workoutErrChan <- err
+				return
+			}
+			var pictures []string
+			for _, picture := range details.Pictures {
+				pictures = append(pictures, picture.URL)
+			}
+			workout.Title = details.Title
+			workout.Description = details.Message
+			workout.Hashtags = strings.Join(details.Hashtags, ",")
+			workout.Pictures = strings.Join(pictures, ",")
+			workout.DetailsExported = 1
+			workoutsChan <- workout
+		}(workout, workoutsChan, workoutErrChan)
+	}
+
+	for range allWorkouts {
+		select {
+		case workout := <-workoutsChan:
+			processed = append(processed, workout)
+			e.logger(fmt.Sprintf("Found details for %s", workout.EndomondoID))
+		case err := <-workoutErrChan:
+			e.logger(fmt.Sprintln("Err", err))
+		}
+	}
+
+	return processed, nil
 }
 
 func (e *Exporter) fetchAllWorkoutsByPage(authorizedClient *endomondo.Client, workoutsPageLimit int) ([]workouts.Workout, error) {

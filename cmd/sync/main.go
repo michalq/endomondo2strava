@@ -63,7 +63,7 @@ func main() {
 	usersRepository := dao.NewUsers(db)
 	endomondoClient := endomondo.NewClient(ctx, httpClient, "https://www.endomondo.com")
 	stravaClient := strava.NewClient(ctx, httpClient, "https://www.strava.com", config.stravaClientID, config.stravaClientSecret)
-	endomondoExporter := export.NewExporter(export.NewDownloader(filesPath, simpleLogger), workoutsRepository)
+	endomondoExporter := export.NewExporter(export.NewDownloader(filesPath, simpleLogger), workoutsRepository, simpleLogger)
 	stravaImporter := upload.NewStravaUploader(workoutsRepository, simpleLogger)
 
 	if err := migration.Migrate(db); err != nil {

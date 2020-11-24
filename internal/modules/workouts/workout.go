@@ -1,5 +1,9 @@
 package workouts
 
+import (
+	"strconv"
+)
+
 // Workout represents single workout
 type Workout struct {
 	EndomondoID string
@@ -14,4 +18,10 @@ type Workout struct {
 	DetailsExported int
 	UploadStarted   int
 	UploadEnded     int
+}
+
+// EndomondoIDAsInt id as int
+func (w *Workout) EndomondoIDAsInt() int {
+	id, _ := strconv.ParseInt(w.EndomondoID, 10, 32)
+	return int(id)
 }

@@ -19,9 +19,14 @@ func NewWorkouts(db *sql.DB) *Workouts {
 // SaveAll save all workouts in database
 func (w *Workouts) SaveAll(workouts []workouts.Workout) error {
 	for _, workout := range workouts {
-		if workout, err := w.FindOneByEndomondoID(workout.EndomondoID); err != nil {
+		existing, err := w.FindOneByEndomondoID(workout.EndomondoID)
+		if err != nil {
 			return err
-		} else if workout != nil {
+		}
+		if existing != nil {
+			if err := w.Update(&workout); err != nil {
+				return err
+			}
 			continue
 		}
 		if err := w.Save(&workout); err != nil {

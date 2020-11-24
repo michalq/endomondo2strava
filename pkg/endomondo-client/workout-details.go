@@ -8,5 +8,9 @@ type WorkoutDetailsResponse struct {
 	// Message is simple description of workout
 	Message  string   `json:"message"`
 	Hashtags []string `json:"hashtags"`
-	Pictures []string `json:"picture"`
+	Pictures []struct {
+		ID           int    `json:"id"`
+		URL          string `json:"url"`
+		PictureToken string `json:"picture_token"`
+	} `json:"pictures"`
 }
