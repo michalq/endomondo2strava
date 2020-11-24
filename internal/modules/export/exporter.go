@@ -68,7 +68,7 @@ func (e *Exporter) fetchAllWorkoutsByPage(authorizedClient *endomondo.Client, wo
 	errChan := make(chan error)
 	for page := 0; page < pages; page++ {
 		go func(workoutsResponseChan chan<- *endomondo.WorkoutsResponse, errChan chan<- error, page int) {
-			workoutsResponse, err := e.fetchWorkouts(authorizedClient, page, workoutsPageLimit)
+			workoutsResponse, err := e.fetchWorkouts(authorizedClient, page*workoutsPageLimit, workoutsPageLimit)
 			if err != nil {
 				errChan <- err
 				return

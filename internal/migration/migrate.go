@@ -9,7 +9,12 @@ var migrations []string = []string{
 		path TEXT, 
 		ext TEXT, 
 		upload_started INTEGER NOT NULL DEFAULT 0, 
-		upload_ended INTEGER NOT NULL DEFAULT 0
+		upload_ended INTEGER NOT NULL DEFAULT 0,
+		title TEXT NOT NULL DEFAULT "",
+		description TEXT NOT NULL DEFAULT "",
+		hashtags TEXT NOT NULL DEFAULT "",
+		pictures TEXT NOT NULL DEFAULT "",
+		details_exported INTEGER NOT NULL DEFAULT 0
 	)`,
 	`CREATE TABLE IF NOT EXISTS users (
 		id TEXT PRIMARY KEY, 
@@ -22,8 +27,11 @@ var migrations []string = []string{
 // Migrate runs all migrations
 func Migrate(db *sql.DB) error {
 	for _, migration := range migrations {
-		createWorkoutsTableStmt, _ := db.Prepare(migration)
-		_, err := createWorkoutsTableStmt.Exec()
+		createWorkoutsTableStmt, err := db.Prepare(migration)
+		if err != nil {
+			return err
+		}
+		_, err = createWorkoutsTableStmt.Exec()
 		if err != nil {
 			return err
 		}
