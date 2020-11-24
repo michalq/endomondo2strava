@@ -32,12 +32,6 @@ Possible values:
 - **STRAVA_CLIENT_SECRET** Strava client secret
     
     ```STRAVA_CLIENT_ID=abcd```
-- **START_AT** Starting point to search workouts to export
-    
-    ```START_AT=2020-01-01```
-- **END_AT** Ending point to search workouts to export
-    
-    ```END_AT=2020-11-01```
 - **ENDOMONDO_EXPORT_FORMAT** Format in which workouts will be downloaded from endomondo. 
     
     Possible values <GPX, TCX>.
@@ -61,7 +55,7 @@ Possible values:
 
 ### Preconditions
 
-1. GoLang installed
+1. GoLang installed, version 1.15
 
 ### Steps to run
 
