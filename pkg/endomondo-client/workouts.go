@@ -17,11 +17,18 @@ type WorkoutType int
 type WorkoutsQueryParams struct {
 	Before string
 	After  string
+	Offset *int
+	Limit  *int
 }
 
 // WorkoutsResponse represents response payload of all workouts
 type WorkoutsResponse struct {
-	Data []WorkoutsResponseData `json:"data"`
+	Data   []WorkoutsResponseData `json:"data"`
+	Paging struct {
+		Next     string `json:"next"`
+		Total    int    `json:"total"`
+		Previous string `json:"previous"`
+	} `json:"paging"`
 }
 
 // WorkoutsResponseData single workout data

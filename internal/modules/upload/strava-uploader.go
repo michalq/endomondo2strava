@@ -1,13 +1,14 @@
-package synchronizer
+package upload
 
 import (
 	"fmt"
 
+	"github.com/michalq/endo2strava/internal/modules/workouts"
 	"github.com/michalq/endo2strava/pkg/strava-client"
 )
 
-// UploadStatus status of current import
-type UploadStatus struct {
+// Status status of current import
+type Status struct {
 	// Uploaded in current run
 	Uploaded int
 	// Skipped due to pending import
@@ -18,30 +19,29 @@ type UploadStatus struct {
 
 // StravaUploader uploads workouts into strava
 type StravaUploader struct {
-	stravaClient       *strava.Client
-	workoutsRepository Workouts
+	workoutsRepository workouts.Workouts
 	logger             func(string)
 }
 
 // NewStravaUploader creates instance of StravaUploader
-func NewStravaUploader(stravaClient *strava.Client, workoutsRepository Workouts, logger func(string)) *StravaUploader {
-	return &StravaUploader{stravaClient, workoutsRepository, logger}
+func NewStravaUploader(workoutsRepository workouts.Workouts, logger func(string)) *StravaUploader {
+	return &StravaUploader{workoutsRepository, logger}
 }
 
 // UploadAll uploads all provided workouts to strava
-func (s *StravaUploader) UploadAll() (*UploadStatus, error) {
-	workouts, err := s.workoutsRepository.FindAll()
+func (s *StravaUploader) UploadAll(authorizedClient *strava.Client) (*Status, error) {
+	allWorkouts, err := s.workoutsRepository.FindAll()
 	if err != nil {
 		return nil, err
 	}
-	var toImport []Workout
-	for _, workout := range workouts {
+	var toImport []workouts.Workout
+	for _, workout := range allWorkouts {
 		if workout.UploadStarted == 0 {
 			toImport = append(toImport, workout)
 		}
 	}
 
-	uploaded, err := s.uploadMany(toImport)
+	uploaded, err := s.uploadMany(authorizedClient, toImport)
 	if len(uploaded) == 0 && err != nil {
 		return nil, err
 	}
@@ -50,21 +50,21 @@ func (s *StravaUploader) UploadAll() (*UploadStatus, error) {
 			fmt.Println("Err", err)
 		}
 	}
-	return &UploadStatus{
+	return &Status{
 		Uploaded: len(uploaded),
-		All:      len(workouts),
-		Skipped:  len(workouts) - len(toImport),
+		All:      len(allWorkouts),
+		Skipped:  len(allWorkouts) - len(toImport),
 	}, err
 }
 
-func (s *StravaUploader) uploadMany(workouts []Workout) ([]Workout, error) {
-	uploadedChan := make(chan Workout)
+func (s *StravaUploader) uploadMany(authorizedClient *strava.Client, workoutsToUpload []workouts.Workout) ([]workouts.Workout, error) {
+	uploadedChan := make(chan workouts.Workout)
 	errorsChan := make(chan error)
-	for _, workout := range workouts {
-		go s.uploadSingleWorkout(workout, uploadedChan, errorsChan)
+	for _, workout := range workoutsToUpload {
+		go s.uploadSingleWorkout(authorizedClient, workout, uploadedChan, errorsChan)
 	}
-	var uploaded []Workout
-	for range workouts {
+	var uploaded []workouts.Workout
+	for range workoutsToUpload {
 		select {
 		case workout := <-uploadedChan:
 			uploaded = append(uploaded, workout)
@@ -77,11 +77,12 @@ func (s *StravaUploader) uploadMany(workouts []Workout) ([]Workout, error) {
 }
 
 func (s *StravaUploader) uploadSingleWorkout(
-	workout Workout,
-	uploadedChan chan<- Workout,
+	authorizedClient *strava.Client,
+	workout workouts.Workout,
+	uploadedChan chan<- workouts.Workout,
 	errorsChan chan<- error,
 ) {
-	uploadResponse, err := s.stravaClient.ImportWorkout(strava.UploadParameters{
+	uploadResponse, err := authorizedClient.ImportWorkout(strava.UploadParameters{
 		ExternalID:  workout.EndomondoID,
 		Name:        fmt.Sprintf("Endomondo %s", workout.EndomondoID),
 		Description: fmt.Sprintf("Workout imported from endomondo"),

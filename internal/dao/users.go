@@ -3,7 +3,7 @@ package dao
 import (
 	"database/sql"
 
-	"github.com/michalq/endo2strava/pkg/synchronizer"
+	"github.com/michalq/endo2strava/internal/modules/users"
 )
 
 // Users repository for users
@@ -17,7 +17,7 @@ func NewUsers(db *sql.DB) *Users {
 }
 
 // Save insert or update user
-func (u *Users) Save(user *synchronizer.User) error {
+func (u *Users) Save(user *users.User) error {
 	if usr, _ := u.FindOneByID(user.ID); usr != nil {
 		return u.Update(user)
 	}
@@ -27,15 +27,15 @@ func (u *Users) Save(user *synchronizer.User) error {
 }
 
 // Update updates user
-func (u *Users) Update(user *synchronizer.User) error {
+func (u *Users) Update(user *users.User) error {
 	stmt, _ := u.db.Prepare("UPDATE users SET strava_access_token=?, strava_refresh_token=?, strava_access_expires_at=? WHERE id=?")
 	_, err := stmt.Exec(user.StravaAccessToken, user.StravaRefreshToken, user.StravaAccessExpiresAt, user.ID)
 	return err
 }
 
 // FindOneByID finds user by id
-func (u *Users) FindOneByID(ID string) (*synchronizer.User, error) {
-	user := &synchronizer.User{}
+func (u *Users) FindOneByID(ID string) (*users.User, error) {
+	user := &users.User{}
 	err := u.db.
 		QueryRow("SELECT id, strava_access_token, strava_refresh_token, strava_access_expires_at FROM users WHERE id=?", ID).
 		Scan(&user.ID, &user.StravaAccessToken, &user.StravaRefreshToken, &user.StravaAccessExpiresAt)

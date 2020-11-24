@@ -1,4 +1,4 @@
-package synchronizer
+package users
 
 // User represent object of user
 type User struct {
@@ -6,11 +6,4 @@ type User struct {
 	StravaAccessToken     string
 	StravaRefreshToken    string
 	StravaAccessExpiresAt int64
-}
-
-// Users repository for users
-type Users interface {
-	Save(*User) error
-	Update(*User) error
-	FindOneByID(string) (*User, error)
 }
