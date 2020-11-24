@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/michalq/endo2strava/internal/modules/export"
@@ -20,7 +21,9 @@ func ExportController(exportInput ExportInput, endomondoExporter *export.Exporte
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := endomondoExporter.RetrieveWorkouts(endomondoClient, exportInput.Format); err != nil {
+	status, err := endomondoExporter.RetrieveWorkouts(endomondoClient, exportInput.Format)
+	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("Found %d workouts, downloaded %d\n", status.All, status.Downloaded)
 }

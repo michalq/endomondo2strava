@@ -9,6 +9,14 @@ import (
 	"github.com/michalq/endo2strava/pkg/endomondo-client"
 )
 
+// Status status of export
+type Status struct {
+	// All how many workouts found
+	All int
+	// Downloaded how many workouts were downloaded
+	Downloaded int
+}
+
 // Exporter does export of workouts
 type Exporter struct {
 	endomondoDownloader *Downloader
@@ -21,23 +29,26 @@ func NewExporter(endomondoDownloader *Downloader, workoutsRepository workouts.Wo
 }
 
 // RetrieveWorkouts finds and save in database all existing workouts and save workout file in given format
-func (e *Exporter) RetrieveWorkouts(authorizedClient *endomondo.Client, format string) error {
+func (e *Exporter) RetrieveWorkouts(authorizedClient *endomondo.Client, format string) (*Status, error) {
 
+	status := &Status{}
 	allWorkouts, err := e.fetchAllWorkoutsByPage(authorizedClient, 100)
+	status.All = len(allWorkouts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := e.workoutsRepository.SaveAll(allWorkouts); err != nil {
-		return fmt.Errorf("Error while saving workouts to db [%s]", err)
+		return nil, fmt.Errorf("Error while saving workouts to db [%s]", err)
 	}
 	downloadedWorkouts, err := e.endomondoDownloader.DownloadAll(authorizedClient, format, allWorkouts)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	status.Downloaded = len(downloadedWorkouts)
 	if err := e.workoutsRepository.SaveAll(downloadedWorkouts); err != nil {
-		return fmt.Errorf("Error while updating workouts in db [%s]", err)
+		return nil, fmt.Errorf("Error while updating workouts in db [%s]", err)
 	}
-	return nil
+	return status, nil
 }
 
 // RetrieveDetails search workout by workout to retrieve rest of necessary data like title, description, pictures etc
