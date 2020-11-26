@@ -12,14 +12,13 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/michalq/endo2strava/internal/controllers"
-	"github.com/michalq/endo2strava/internal/dao"
+	"github.com/michalq/endo2strava/internal/dal"
 	"github.com/michalq/endo2strava/internal/migration"
 	"github.com/michalq/endo2strava/internal/modules/export"
 	"github.com/michalq/endo2strava/internal/modules/upload"
 
 	"github.com/michalq/endo2strava/pkg/endomondo-client"
 	"github.com/michalq/endo2strava/pkg/strava-client"
-	"github.com/michalq/endo2strava/pkg/synchronizer"
 )
 
 const (
@@ -40,9 +39,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	var steps synchronizer.SynchronizationSteps
-	for _, step := range strings.Split(os.Getenv("STEP"), ",") {
-		steps = append(steps, synchronizer.SynchronizationStep(step))
+	var actions controllers.SynchronizationActions
+	for _, action := range strings.Split(os.Getenv("STEP"), ",") {
+		actions = append(actions, controllers.SynchronizationAction(action))
 	}
 	config := configuration{
 		endomondoEmail:        os.Getenv("ENDOMONDO_EMAIL"),
@@ -50,7 +49,7 @@ func main() {
 		endomondoExportFormat: os.Getenv("ENDOMONDO_EXPORT_FORMAT"),
 		stravaClientID:        os.Getenv("STRAVA_CLIENT_ID"),
 		stravaClientSecret:    os.Getenv("STRAVA_CLIENT_SECRET"),
-		step:                  steps,
+		action:                actions,
 	}
 
 	// Loading deps
@@ -59,8 +58,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection failed (%s).\n", err)
 	}
-	workoutsRepository := dao.NewWorkouts(db)
-	usersRepository := dao.NewUsers(db)
+	workoutsRepository := dal.NewWorkouts(db)
+	usersRepository := dal.NewUsers(db)
 	endomondoClient := endomondo.NewClient(ctx, httpClient, "https://www.endomondo.com")
 	stravaClient := strava.NewClient(ctx, httpClient, "https://www.strava.com", config.stravaClientID, config.stravaClientSecret)
 	endomondoExporter := export.NewExporter(export.NewDownloader(filesPath, simpleLogger), workoutsRepository, simpleLogger)
@@ -75,7 +74,7 @@ func main() {
 		log.Fatalf("Format not supported, supported format [%s, %s]", endomondo.ExportFormatTCX, endomondo.ExportFormatGPX)
 	}
 
-	if config.step.Has(synchronizer.StepExport) {
+	if config.action.Has(controllers.ActionExport) {
 		controllers.ExportController(controllers.ExportInput{
 			Email: config.endomondoEmail, Pass: config.endomondoPass, Format: config.endomondoExportFormat,
 		}, endomondoExporter, endomondoClient)
@@ -83,7 +82,7 @@ func main() {
 		fmt.Println("Skipping export")
 	}
 
-	if config.step.Has(synchronizer.StepImport) {
+	if config.action.Has(controllers.ActionImport) {
 		controllers.ImportController(controllers.ImportInput{
 			ClientID: config.stravaClientID, ClientSecret: config.stravaClientSecret,
 		}, stravaImporter, stravaClient, usersRepository)

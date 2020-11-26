@@ -20,7 +20,8 @@ var migrations []string = []string{
 		id TEXT PRIMARY KEY, 
 		strava_access_token TEXT, 
 		strava_refresh_token TEXT, 
-		strava_access_expires_at INTEGER
+		strava_access_expires_at INTEGER,
+		stage INTEGER NOT NULL DEFAULT 0
 	)`,
 }
 

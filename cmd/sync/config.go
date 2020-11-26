@@ -1,14 +1,14 @@
 package main
 
-import "github.com/michalq/endo2strava/pkg/synchronizer"
+import (
+	"github.com/michalq/endo2strava/internal/controllers"
+)
 
 type configuration struct {
-	startAt               string
-	endAt                 string
 	endomondoEmail        string
 	endomondoPass         string
 	endomondoExportFormat string
 	stravaClientID        string
 	stravaClientSecret    string
-	step                  synchronizer.SynchronizationSteps
+	action                controllers.SynchronizationActions
 }
