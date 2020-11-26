@@ -11,6 +11,24 @@ import (
 	"github.com/michalq/endo2strava/pkg/strava-client"
 )
 
+// ImportController controller for import
+type ImportController struct {
+	stravaUploader  *upload.StravaUploader
+	stravaClient    *strava.Client
+	userManager     *users.Manager
+	usersRepository users.Users
+}
+
+// NewImportController creates new import controller instance
+func NewImportController(
+	stravaUploader *upload.StravaUploader,
+	stravaClient *strava.Client,
+	userManager *users.Manager,
+	usersRepository users.Users,
+) *ImportController {
+	return &ImportController{stravaUploader, stravaClient, userManager, usersRepository}
+}
+
 // ImportInput input passed to import controller
 type ImportInput struct {
 	UserID       string
@@ -18,18 +36,15 @@ type ImportInput struct {
 	ClientSecret string
 }
 
-// ImportController handles import data to strava
-func ImportController(input ImportInput, stravaUploader *upload.StravaUploader, stravaClient *strava.Client, usersRepository users.Users) {
-	user, err := usersRepository.FindOneByID(input.UserID)
+// ImportAction handles import data to strava
+func (i *ImportController) ImportAction(input ImportInput) {
+	user, err := i.userManager.FindOrCreate(input.UserID)
 	if err != nil {
-		log.Fatalf("Couldn't find user (%s).", err)
+		log.Fatalln(err)
 	}
-	if user == nil {
-		user = &users.User{ID: input.UserID, StravaAccessExpiresAt: 0, StravaAccessToken: "", StravaRefreshToken: ""}
-		usersRepository.Save(user)
-	}
+	var authorizedClient *strava.Client
 	if user.StravaAccessToken != "" {
-		stravaClient, err = stravaClient.AuthorizeDirectly(&strava.AuthTokenData{
+		authorizedClient, err = i.stravaClient.AuthorizeDirectly(&strava.AuthTokenData{
 			AccessToken:  user.StravaAccessToken,
 			RefreshToken: user.StravaRefreshToken,
 			ExpiresAt:    user.StravaAccessExpiresAt,
@@ -38,23 +53,23 @@ func ImportController(input ImportInput, stravaUploader *upload.StravaUploader, 
 			log.Fatalf("Strava authorization fail (%s).", err)
 		}
 	} else {
-		fmt.Printf("Grant access to strava:\n%s\n\n...and copy code that will be after ?code= in redirected url:\n", stravaClient.GenerateAuthorizationURL())
+		fmt.Printf("Grant access to strava:\n%s\n\n...and copy code that will be after ?code= in redirected url:\n", i.stravaClient.GenerateAuthorizationURL())
 		stravaCode := bufio.NewScanner(os.Stdin)
 		stravaCode.Scan()
-		stravaClient, err = stravaClient.Authorize(stravaCode.Text())
+		authorizedClient, err = i.stravaClient.Authorize(stravaCode.Text())
 		if err != nil {
 			log.Fatalf("Strava authorization fail (%s).", err)
 		}
 	}
-	user.StravaRefreshToken = stravaClient.Authorization().AccessToken
-	user.StravaAccessToken = stravaClient.Authorization().RefreshToken
-	user.StravaAccessExpiresAt = stravaClient.Authorization().ExpiresAt
-	if err := usersRepository.Update(user); err != nil {
+	user.StravaRefreshToken = authorizedClient.Authorization().AccessToken
+	user.StravaAccessToken = authorizedClient.Authorization().RefreshToken
+	user.StravaAccessExpiresAt = authorizedClient.Authorization().ExpiresAt
+	if err := i.usersRepository.Update(user); err != nil {
 		log.Fatalf("Cannot update user (%s)", err)
 	}
 
 	fmt.Println("Starting import")
-	status, err := stravaUploader.UploadAll(stravaClient)
+	status, err := i.stravaUploader.UploadAll(authorizedClient)
 	if err != nil {
 		fmt.Println(err)
 	}

@@ -6,4 +6,5 @@ type User struct {
 	StravaAccessToken     string
 	StravaRefreshToken    string
 	StravaAccessExpiresAt int64
+	WorkoutsQuantity      int
 }

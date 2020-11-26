@@ -4,26 +4,52 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/michalq/endo2strava/internal/modules/report"
+
+	"github.com/michalq/endo2strava/internal/modules/users"
+
 	"github.com/michalq/endo2strava/internal/modules/export"
 	"github.com/michalq/endo2strava/pkg/endomondo-client"
 )
 
+// ExportController controller for export
+type ExportController struct {
+	endomondoClient *endomondo.Client
+	userManager     *users.Manager
+	reportGenerator *report.Generator
+	orchestrator    *export.Orchestrator
+}
+
+// NewExportController creates new export controller instance
+func NewExportController(endomondoClient *endomondo.Client, userManager *users.Manager, reportGenerator *report.Generator, orchestrator *export.Orchestrator) *ExportController {
+	return &ExportController{endomondoClient, userManager, reportGenerator, orchestrator}
+}
+
 // ExportInput input for controller
 type ExportInput struct {
+	UserID string
 	Email  string
 	Pass   string
 	Format string
 }
 
-// ExportController handles exporting workouts from endomondo
-func ExportController(exportInput ExportInput, endomondoExporter *export.Exporter, endomondoClient *endomondo.Client) {
-	endomondoClient, err := endomondoClient.Authorize(exportInput.Email, exportInput.Pass)
+// ExportAction handles exporting workouts from endomondo
+func (e *ExportController) ExportAction(input ExportInput) {
+
+	user, err := e.userManager.FindOrCreate(input.UserID)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	authorizedClient, err := e.endomondoClient.Authorize(input.Email, input.Pass)
 	if err != nil {
 		log.Fatal(err)
 	}
-	status, err := endomondoExporter.RetrieveWorkouts(endomondoClient, exportInput.Format)
-	if err != nil {
-		log.Fatal(err)
+	if err := e.orchestrator.Run(authorizedClient, user, input.Format); err != nil {
+		log.Fatalln(err)
 	}
-	fmt.Printf("Found %d workouts, downloaded %d\n", status.All, status.Downloaded)
+	report, err := e.reportGenerator.Generate()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Printf("%+v\n", report)
 }

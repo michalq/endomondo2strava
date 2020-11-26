@@ -21,6 +21,7 @@ var migrations []string = []string{
 		strava_access_token TEXT, 
 		strava_refresh_token TEXT, 
 		strava_access_expires_at INTEGER,
+		workouts_quantity INTEGER NOT NULL DEFAULT 0,
 		stage INTEGER NOT NULL DEFAULT 0
 	)`,
 }

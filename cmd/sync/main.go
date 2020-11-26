@@ -15,7 +15,9 @@ import (
 	"github.com/michalq/endo2strava/internal/dal"
 	"github.com/michalq/endo2strava/internal/migration"
 	"github.com/michalq/endo2strava/internal/modules/export"
+	"github.com/michalq/endo2strava/internal/modules/report"
 	"github.com/michalq/endo2strava/internal/modules/upload"
+	"github.com/michalq/endo2strava/internal/modules/users"
 
 	"github.com/michalq/endo2strava/pkg/endomondo-client"
 	"github.com/michalq/endo2strava/pkg/strava-client"
@@ -31,6 +33,14 @@ var (
 	ctx        = context.Background()
 	httpClient = &http.Client{}
 )
+
+// StdOutLogger logger that prints simple in std out
+type StdOutLogger struct{}
+
+// Info log information
+func (StdOutLogger) Info(l string) {
+	fmt.Println(l)
+}
 
 func main() {
 	// Loading input
@@ -53,6 +63,7 @@ func main() {
 	}
 
 	// Loading deps
+	// logger := &StdOutLogger{}
 	simpleLogger := func(l string) { fmt.Println(l) }
 	db, err := sql.Open("sqlite3", "file:./tmp/db.sqlite")
 	if err != nil {
@@ -62,8 +73,13 @@ func main() {
 	usersRepository := dal.NewUsers(db)
 	endomondoClient := endomondo.NewClient(ctx, httpClient, "https://www.endomondo.com")
 	stravaClient := strava.NewClient(ctx, httpClient, "https://www.strava.com", config.stravaClientID, config.stravaClientSecret)
-	endomondoExporter := export.NewExporter(export.NewDownloader(filesPath, simpleLogger), workoutsRepository, simpleLogger)
+	endomondoExporter := export.NewExporter(export.NewDownloader(filesPath, simpleLogger), workoutsRepository, usersRepository, simpleLogger)
 	stravaImporter := upload.NewStravaUploader(workoutsRepository, simpleLogger)
+	usersManager := users.NewManager(usersRepository)
+	exportOrchestrator := export.NewOrchestrator(endomondoExporter, usersRepository)
+	reportGenerator := report.NewGenerator(workoutsRepository)
+	exportController := controllers.NewExportController(endomondoClient, usersManager, reportGenerator, exportOrchestrator)
+	importController := controllers.NewImportController(stravaImporter, stravaClient, usersManager, usersRepository)
 
 	if err := migration.Migrate(db); err != nil {
 		log.Fatalf("Migrations fail (%s).", err)
@@ -75,17 +91,17 @@ func main() {
 	}
 
 	if config.action.Has(controllers.ActionExport) {
-		controllers.ExportController(controllers.ExportInput{
+		exportController.ExportAction(controllers.ExportInput{
 			Email: config.endomondoEmail, Pass: config.endomondoPass, Format: config.endomondoExportFormat,
-		}, endomondoExporter, endomondoClient)
+		})
 	} else {
 		fmt.Println("Skipping export")
 	}
 
 	if config.action.Has(controllers.ActionImport) {
-		controllers.ImportController(controllers.ImportInput{
+		importController.ImportAction(controllers.ImportInput{
 			ClientID: config.stravaClientID, ClientSecret: config.stravaClientSecret,
-		}, stravaImporter, stravaClient, usersRepository)
+		})
 	} else {
 		fmt.Println("Skipping import")
 	}
