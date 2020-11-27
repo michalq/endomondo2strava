@@ -106,7 +106,7 @@ func (c *Client) GenerateAuthorizationURL() string {
 	query.Set("scope", ScopeActivityWrite)
 	query.Set("response_type", "code")
 	query.Set("approval_prompt ", "auto")
-	query.Set("redirect_uri", "http://127.0.0.1:5000/authorization")
+	query.Set("redirect_uri", "http://localhost:5000/authorization")
 	return fmt.Sprintf("%s/oauth/authorize?%s", c.baseURL, query.Encode())
 }
 

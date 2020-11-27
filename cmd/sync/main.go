@@ -1,16 +1,20 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/michalq/endo2strava/pkg/dao"
@@ -19,6 +23,17 @@ import (
 	"github.com/michalq/endo2strava/pkg/strava-client"
 	"github.com/michalq/endo2strava/pkg/synchronizer"
 )
+
+type configuration struct {
+	startAt               string
+	endAt                 string
+	endomondoEmail        string
+	endomondoPass         string
+	endomondoExportFormat string
+	stravaClientID        string
+	stravaClientSecret    string
+	step                  synchronizer.SynchronizationSteps
+}
 
 const (
 	// WorkoutsPath stores path where workouts will be downloaded
@@ -30,11 +45,14 @@ const (
 var (
 	ctx        = context.Background()
 	httpClient = &http.Client{}
+	stravaCode = ""
 )
 
 func main() {
 	// Loading input
-	fmt.Println("Hello world!")
+	fmt.Println("Starting local server!")
+	setupLocalServer()
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -95,24 +113,22 @@ func main() {
 		user = &synchronizer.User{ID: UserID, StravaAccessExpiresAt: 0, StravaAccessToken: "", StravaRefreshToken: ""}
 		usersRepository.Save(user)
 	}
-	if user.StravaAccessToken != "" {
-		stravaClient, err = stravaClient.AuthorizeDirectly(&strava.AuthTokenData{
-			AccessToken:  user.StravaAccessToken,
-			RefreshToken: user.StravaRefreshToken,
-			ExpiresAt:    user.StravaAccessExpiresAt,
-		})
-		if err != nil {
-			log.Fatalf("Strava authorization fail (%s).", err)
-		}
-	} else {
-		fmt.Printf("Grant access to strava:\n%s\n\n...and copy code that will be after ?code= in redirected url:\n", stravaClient.GenerateAuthorizationURL())
-		stravaCode := bufio.NewScanner(os.Stdin)
-		stravaCode.Scan()
-		stravaClient, err = stravaClient.Authorize(stravaCode.Text())
-		if err != nil {
-			log.Fatalf("Strava authorization fail (%s).", err)
-		}
+
+	authURL := stravaClient.GenerateAuthorizationURL()
+	openBrowser(authURL)
+	for i := 0; i < 12 && stravaCode == ""; i++ {
+		log.Println("Waiting for user authorization in browser, sleeping 10 seconds")
+		time.Sleep(time.Second * 10)
 	}
+	if stravaCode == "" {
+		log.Fatalln("Timed out after waiting 2 minutes for auth code")
+	}
+
+	stravaClient, err = stravaClient.Authorize(stravaCode)
+	if err != nil {
+		log.Fatalf("Strava authorization fail (%s).", err)
+	}
+
 	user.StravaRefreshToken = stravaClient.Authorization().AccessToken
 	user.StravaAccessToken = stravaClient.Authorization().RefreshToken
 	user.StravaAccessExpiresAt = stravaClient.Authorization().ExpiresAt
@@ -135,13 +151,63 @@ func main() {
 
 	if config.step.Has(synchronizer.StepImport) {
 		fmt.Println("Starting import")
-		status, err := stravaUploader.UploadAll()
+		err := stravaUploader.UploadAll()
 		if err != nil {
 			fmt.Println(err)
 		}
-		// TODO verify started import whether ended
-		fmt.Printf("\n---\nUploaded: %d, Skipped: %d (due to pending or ended import), All: %d\n", status.Uploaded, status.Skipped, status.All)
 	} else {
 		fmt.Println("Skipping import")
 	}
+}
+
+func openBrowser(url string) {
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		data, _ := ioutil.ReadFile("/proc/version")
+		if data != nil && strings.Contains(string(data), "-microsoft-") {
+			err = exec.Command("wslview", url).Start()
+		} else {
+			err = exec.Command("xdg-open", url).Start()
+		}
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
+}
+
+func setupLocalServer() {
+	r := chi.NewRouter()
+
+	// A good base middleware stack
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	r.Get("/authorization", func(w http.ResponseWriter, r *http.Request) {
+		val := r.FormValue("code")
+		if val != "" {
+			fmt.Fprintln(w, "Return to the console to watch progress of the transfer")
+			stravaCode = val
+		} else {
+			fmt.Fprintf(w, "Missing auth code in response")
+		}
+	})
+
+	go func() {
+		fmt.Println("serving on 5000")
+		err := http.ListenAndServe(":5000", r)
+		if err != nil {
+			panic("ListenAndServe: " + err.Error())
+		}
+	}()
 }

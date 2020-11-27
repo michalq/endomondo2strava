@@ -2,6 +2,9 @@ package synchronizer
 
 import (
 	"fmt"
+	"log"
+	"strings"
+	"time"
 
 	"github.com/michalq/endo2strava/pkg/strava-client"
 )
@@ -29,11 +32,12 @@ func NewStravaUploader(stravaClient *strava.Client, workoutsRepository Workouts,
 }
 
 // UploadAll uploads all provided workouts to strava
-func (s *StravaUploader) UploadAll() (*UploadStatus, error) {
+func (s *StravaUploader) UploadAll() error {
 	workouts, err := s.workoutsRepository.FindAll()
 	if err != nil {
-		return nil, err
+		return err
 	}
+	workoutCount := len(workouts)
 	var toImport []Workout
 	for _, workout := range workouts {
 		if workout.UploadStarted == 0 {
@@ -41,36 +45,68 @@ func (s *StravaUploader) UploadAll() (*UploadStatus, error) {
 		}
 	}
 
-	uploaded, err := s.uploadMany(toImport)
-	if len(uploaded) == 0 && err != nil {
-		return nil, err
-	}
-	for _, workout := range uploaded {
-		if err := s.workoutsRepository.Update(&workout); err != nil {
-			fmt.Println("Err", err)
+	totalUploaded := 0
+	for len(toImport) > 0 {
+		uploaded, err := s.uploadMany(toImport)
+		totalUploaded += len(uploaded)
+		fmt.Printf("\n---\nUploaded: %d, Skipped: %d (due to pending or ended import), All: %d\n",
+			totalUploaded, workoutCount, workoutCount-totalUploaded)
+
+		if err != nil {
+			rateLimitExceeded := strings.Contains(err.Error(), "Rate Limit Exceeded")
+			if rateLimitExceeded {
+				log.Println(err.Error())
+			} else {
+				return err
+			}
+		}
+
+		for _, workout := range uploaded {
+			if updateErr := s.workoutsRepository.Update(&workout); updateErr != nil {
+				fmt.Println("Err", updateErr)
+			}
+			workouts, err := s.workoutsRepository.FindAll()
+			if err != nil {
+				return err
+			}
+			for _, workout := range workouts {
+				if workout.UploadStarted == 0 {
+					toImport = append(toImport, workout)
+				}
+			}
+		}
+
+		if len(toImport) > 0 {
+			if totalUploaded%1000 == 0 {
+				log.Println("Exceeded api limit of 1000 calls per day. You can cancel and restart or")
+				log.Println("wait for 24 hours and then this will continue automatically")
+				time.Sleep(time.Hour * 24)
+			} else {
+				log.Println("Exceeded api limit of 100 calls per 15 mins. You can cancel and restart or")
+				log.Println("wait for 15 minutes and then this will continue automatically")
+				time.Sleep(time.Minute * 15)
+			}
 		}
 	}
-	return &UploadStatus{
-		Uploaded: len(uploaded),
-		All:      len(workouts),
-		Skipped:  len(workouts) - len(toImport),
-	}, err
+
+	return nil
 }
 
 func (s *StravaUploader) uploadMany(workouts []Workout) ([]Workout, error) {
 	uploadedChan := make(chan Workout)
 	errorsChan := make(chan error)
-	for _, workout := range workouts {
-		go s.uploadSingleWorkout(workout, uploadedChan, errorsChan)
+
+	for i := 0; i < len(workouts) && i < 100; i++ {
+		go s.uploadSingleWorkout(workouts[i], uploadedChan, errorsChan)
 	}
 	var uploaded []Workout
 	for range workouts {
 		select {
 		case workout := <-uploadedChan:
 			uploaded = append(uploaded, workout)
-			s.logger(fmt.Sprintf("Send workout to strava, endomondo id %s, strava id %s", workout.EndomondoID, workout.StravaID))
+			s.logger(fmt.Sprintf("Sent workout to strava, endomondo id %s, strava id %s", workout.EndomondoID, workout.StravaID))
 		case err := <-errorsChan:
-			return nil, err
+			return uploaded, err
 		}
 	}
 	return uploaded, nil
