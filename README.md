@@ -68,6 +68,25 @@ Possible values:
 
 *With the first run you will have to authorize yourself in strava by opening link, clicking Authorize and then copying code from url. Authorization data are saved in db so next run doesn't require that step.
 
+Example result output:
+```
+----------------------------
+Found workouts          574
+----------------------------
+Downloaded details      574
+----------------------------
+Found photos            3
+----------------------------
+Downloaded workouts     574
+----------------------------
+Imported workouts       100
+----------------------------
+```
+
+### Results
+
+All exported workouts you will wind under ```./tmp/workouts```, in ```./tmp/db.sqlite``` you can find database with export/import status.
+
 ### Limitations
 
 Strava allows only for 100 requests to api per 15 minutes. If you have more than 100 workouts you will have to run script few times waiting 15 minutes after each run. In database is saved information which workouts were uploaded, so each run will send another not imported workouts. If you want to run script many times make sure to set ```STEP=import``` to skip exporting each time from endomondo.
@@ -93,3 +112,11 @@ Endomondo doesn't have limitations so probably you will be able to download all 
 
 1. Dockerize it,
 2. Verification if import ended
+
+# Changelog
+
+## 0.2.0
+ - Saving in DB title, description and hashtags from endomondo
+ - Description is saved in format: "{endomondoDescription} {hashtags} (Endomondo id {endomondiId})"
+ - Photos are saved in local database as a link (have to be queried manually),
+ - Added report at the end of eport/import
