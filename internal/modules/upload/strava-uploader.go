@@ -2,6 +2,7 @@ package upload
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/michalq/endo2strava/internal/modules/workouts"
 	"github.com/michalq/endo2strava/pkg/strava-client"
@@ -82,10 +83,16 @@ func (s *StravaUploader) uploadSingleWorkout(
 	uploadedChan chan<- workouts.Workout,
 	errorsChan chan<- error,
 ) {
+	var hashtags []string
+	if len(workout.HashtagsList()) > 0 {
+		for _, hashtag := range workout.HashtagsList() {
+			hashtags = append(hashtags, "#"+hashtag)
+		}
+	}
 	uploadResponse, err := authorizedClient.ImportWorkout(strava.UploadParameters{
 		ExternalID:  workout.EndomondoID,
-		Name:        fmt.Sprintf("Endomondo %s", workout.EndomondoID),
-		Description: fmt.Sprintf("Workout imported from endomondo"),
+		Name:        fmt.Sprintf(workout.Title),
+		Description: fmt.Sprintf("%s %s (Endomondo id %s)", workout.Description, strings.Join(hashtags, " "), workout.EndomondoID),
 		File:        workout.Path,
 		Commute:     "0",
 		DataType:    workout.Ext,

@@ -2,6 +2,7 @@ package workouts
 
 import (
 	"strconv"
+	"strings"
 )
 
 // Workout represents single workout
@@ -18,6 +19,14 @@ type Workout struct {
 	DetailsExported int
 	UploadStarted   int
 	UploadEnded     int
+}
+
+// HashtagsList returns hashtags as an array of string
+func (w *Workout) HashtagsList() []string {
+	if len(w.Hashtags) > 0 {
+		return strings.Split(",", w.Hashtags)
+	}
+	return []string{}
 }
 
 // EndomondoIDAsInt id as int
