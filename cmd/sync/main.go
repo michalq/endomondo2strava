@@ -79,7 +79,7 @@ func main() {
 	exportOrchestrator := export.NewOrchestrator(endomondoExporter, usersRepository)
 	reportGenerator := report.NewGenerator(workoutsRepository)
 	exportController := controllers.NewExportController(endomondoClient, usersManager, reportGenerator, exportOrchestrator)
-	importController := controllers.NewImportController(stravaImporter, stravaClient, usersManager, usersRepository)
+	importController := controllers.NewImportController(stravaImporter, stravaClient, reportGenerator, usersManager, usersRepository)
 
 	if err := migration.Migrate(db); err != nil {
 		log.Fatalf("Migrations fail (%s).", err)

@@ -50,8 +50,8 @@ func (e *ExportController) ExportAction(input ExportInput) {
 	}
 
 	report, err := e.reportGenerator.Generate()
-	renderCliReport(report)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	renderCliReport(report)
 }

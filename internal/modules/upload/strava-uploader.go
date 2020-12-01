@@ -65,16 +65,19 @@ func (s *StravaUploader) uploadMany(authorizedClient *strava.Client, workoutsToU
 		go s.uploadSingleWorkout(authorizedClient, workout, uploadedChan, errorsChan)
 	}
 	var uploaded []workouts.Workout
+	var errCollection = NewErrorCollection()
 	for range workoutsToUpload {
 		select {
 		case workout := <-uploadedChan:
 			uploaded = append(uploaded, workout)
 			s.logger(fmt.Sprintf("Send workout to strava, endomondo id %s, strava id %s", workout.EndomondoID, workout.StravaID))
 		case err := <-errorsChan:
-			return nil, err
+			// Collect errors, but don't stop rest of routines
+			s.logger(fmt.Sprintf("Error occured while uploading %s", err))
+			errCollection.Append(err)
 		}
 	}
-	return uploaded, nil
+	return uploaded, errCollection
 }
 
 func (s *StravaUploader) uploadSingleWorkout(

@@ -18,6 +18,9 @@ import (
 // ScopeActivityWrite Access to create manual activities and uploads, and access to edit any activities that are visible to the app, based on activity read access level
 const ScopeActivityWrite = "activity:write"
 
+// ErrRateLimitExceeded error returned after request limit to strava will be reach
+var ErrRateLimitExceeded = errors.New("strava rate limit exceeded")
+
 // Client simple strava client
 type Client struct {
 	ctx          context.Context
@@ -95,7 +98,18 @@ func (c *Client) ImportWorkout(upload UploadParameters) (*UploadResponse, error)
 		return uploadResponse, nil
 	}
 
-	return nil, fmt.Errorf("unexpected response [%s)", string(respBody))
+	return nil, handleError(resp, respBody)
+}
+
+func handleError(response *http.Response, respBody []byte) error {
+	errorResp := &ErrorResponse{}
+	if err := json.Unmarshal(respBody, errorResp); err != nil {
+		return err
+	}
+	if errorResp.Message == "Rate Limit Exceeded" {
+		return ErrRateLimitExceeded
+	}
+	return fmt.Errorf("unexpected response %s", string(respBody))
 }
 
 // GenerateAuthorizationURL generates url that user must accept access

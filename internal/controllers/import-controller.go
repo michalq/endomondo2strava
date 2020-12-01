@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/michalq/endo2strava/internal/modules/report"
+
 	"github.com/michalq/endo2strava/internal/modules/upload"
 	"github.com/michalq/endo2strava/internal/modules/users"
 	"github.com/michalq/endo2strava/pkg/strava-client"
@@ -15,6 +17,7 @@ import (
 type ImportController struct {
 	stravaUploader  *upload.StravaUploader
 	stravaClient    *strava.Client
+	reportGenerator *report.Generator
 	userManager     *users.Manager
 	usersRepository users.Users
 }
@@ -23,10 +26,11 @@ type ImportController struct {
 func NewImportController(
 	stravaUploader *upload.StravaUploader,
 	stravaClient *strava.Client,
+	reportGenerator *report.Generator,
 	userManager *users.Manager,
 	usersRepository users.Users,
 ) *ImportController {
-	return &ImportController{stravaUploader, stravaClient, userManager, usersRepository}
+	return &ImportController{stravaUploader, stravaClient, reportGenerator, userManager, usersRepository}
 }
 
 // ImportInput input passed to import controller
@@ -69,10 +73,14 @@ func (i *ImportController) ImportAction(input ImportInput) {
 	}
 
 	fmt.Println("Starting import")
-	status, err := i.stravaUploader.UploadAll(authorizedClient)
+	_, err = i.stravaUploader.UploadAll(authorizedClient)
 	if err != nil {
 		fmt.Println(err)
 	}
 	// TODO verify started import whether ended
-	fmt.Printf("\n---\nUploaded: %d, Skipped: %d (due to pending or ended import), All: %d\n", status.Uploaded, status.Skipped, status.All)
+	report, err := i.reportGenerator.Generate()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	renderCliReport(report)
 }
