@@ -30,7 +30,7 @@ func NewStravaUploader(workoutsRepository workouts.Workouts, logger func(string)
 }
 
 // UploadAll uploads all provided workouts to strava
-func (s *StravaUploader) UploadAll(authorizedClient *strava.Client) (*Status, error) {
+func (s *StravaUploader) UploadAll(authorizedClient *strava.Client, requestLimit int) (*Status, error) {
 	allWorkouts, err := s.workoutsRepository.FindAll()
 	if err != nil {
 		return nil, err
@@ -40,6 +40,9 @@ func (s *StravaUploader) UploadAll(authorizedClient *strava.Client) (*Status, er
 		if workout.UploadStarted == 0 {
 			toImport = append(toImport, workout)
 		}
+	}
+	if len(toImport) > requestLimit {
+		toImport = toImport[0:requestLimit]
 	}
 
 	uploaded, err := s.uploadMany(authorizedClient, toImport)

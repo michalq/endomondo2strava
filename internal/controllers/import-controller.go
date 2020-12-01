@@ -13,6 +13,8 @@ import (
 	"github.com/michalq/endo2strava/pkg/strava-client"
 )
 
+const StravaRequestLimit = 100
+
 // ImportController controller for import
 type ImportController struct {
 	stravaUploader  *upload.StravaUploader
@@ -73,7 +75,7 @@ func (i *ImportController) ImportAction(input ImportInput) {
 	}
 
 	fmt.Println("Starting import")
-	_, err = i.stravaUploader.UploadAll(authorizedClient)
+	_, err = i.stravaUploader.UploadAll(authorizedClient, StravaRequestLimit)
 	if err != nil {
 		fmt.Println(err)
 	}
