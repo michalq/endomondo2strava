@@ -1,0 +1,11 @@
+{
+    "sqltools.connections": [
+        {
+            "database": "${workspaceFolder:endomondo2strava}/tmp/db.sqlite",
+            "driver": "SQLite",
+            "name": "Endo2Strava",
+            "previewLimit": 50
+        }
+    ],
+    "sqltools.useNodeRuntime": true
+}

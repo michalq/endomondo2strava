@@ -36,6 +36,7 @@ type ExportInput struct {
 // ExportAction handles exporting workouts from endomondo
 func (e *ExportController) ExportAction(input ExportInput) {
 
+	fmt.Println("Running export 🚀")
 	user, err := e.userManager.FindOrCreate(input.UserID)
 	if err != nil {
 		log.Fatalln(err)
@@ -47,9 +48,10 @@ func (e *ExportController) ExportAction(input ExportInput) {
 	if err := e.orchestrator.Run(authorizedClient, user, input.Format); err != nil {
 		log.Fatalln(err)
 	}
+
 	report, err := e.reportGenerator.Generate()
+	renderCliReport(report)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Printf("%+v\n", report)
 }

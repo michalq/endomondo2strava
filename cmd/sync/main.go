@@ -44,7 +44,7 @@ func (StdOutLogger) Info(l string) {
 
 func main() {
 	// Loading input
-	fmt.Println("Hello world!")
+	fmt.Println("Endomondo 2 Strava synchronizer.\n")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -94,15 +94,11 @@ func main() {
 		exportController.ExportAction(controllers.ExportInput{
 			Email: config.endomondoEmail, Pass: config.endomondoPass, Format: config.endomondoExportFormat,
 		})
-	} else {
-		fmt.Println("Skipping export")
 	}
 
 	if config.action.Has(controllers.ActionImport) {
 		importController.ImportAction(controllers.ImportInput{
 			ClientID: config.stravaClientID, ClientSecret: config.stravaClientSecret,
 		})
-	} else {
-		fmt.Println("Skipping import")
 	}
 }
