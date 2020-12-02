@@ -13,6 +13,7 @@ import (
 	"github.com/michalq/endo2strava/pkg/strava-client"
 )
 
+// StravaRequestLimit limit of request per one run
 const StravaRequestLimit = 100
 
 // ImportController controller for import
@@ -56,6 +57,12 @@ func (i *ImportController) ImportAction(input ImportInput) {
 			ExpiresAt:    user.StravaAccessExpiresAt,
 		})
 		if err != nil {
+			user.StravaRefreshToken = ""
+			user.StravaAccessToken = ""
+			user.StravaAccessExpiresAt = 0
+			if err := i.usersRepository.Update(user); err != nil {
+				log.Fatalf("Cannot update user (%s)", err)
+			}
 			log.Fatalf("Strava authorization fail (%s).", err)
 		}
 	} else {
@@ -67,8 +74,8 @@ func (i *ImportController) ImportAction(input ImportInput) {
 			log.Fatalf("Strava authorization fail (%s).", err)
 		}
 	}
-	user.StravaRefreshToken = authorizedClient.Authorization().AccessToken
-	user.StravaAccessToken = authorizedClient.Authorization().RefreshToken
+	user.StravaRefreshToken = authorizedClient.Authorization().RefreshToken
+	user.StravaAccessToken = authorizedClient.Authorization().AccessToken
 	user.StravaAccessExpiresAt = authorizedClient.Authorization().ExpiresAt
 	if err := i.usersRepository.Update(user); err != nil {
 		log.Fatalf("Cannot update user (%s)", err)
