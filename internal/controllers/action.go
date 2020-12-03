@@ -21,4 +21,6 @@ const (
 	ActionExport SynchronizationAction = "export"
 	// ActionImport import
 	ActionImport SynchronizationAction = "import"
+	// ActionVerifyImport verification
+	ActionVerifyImport SynchronizationAction = "verify"
 )

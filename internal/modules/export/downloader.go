@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/michalq/endo2strava/internal/modules/common"
 	"github.com/michalq/endo2strava/internal/modules/workouts"
 	"github.com/michalq/endo2strava/pkg/endomondo-client"
 )
@@ -22,13 +23,13 @@ type Result struct {
 // Downloader finds workouts
 type Downloader struct {
 	workoutsPath WorkoutsPath
-	logger       func(l string)
+	logger       common.Logger
 }
 
 // NewDownloader creates new instance
 func NewDownloader(
 	workoutsPath WorkoutsPath,
-	logger func(l string),
+	logger common.Logger,
 ) *Downloader {
 	return &Downloader{workoutsPath, logger}
 }
@@ -50,10 +51,10 @@ func (e *Downloader) DownloadAll(
 	for range workoutsToDownload {
 		select {
 		case workout := <-workoutsChan:
-			e.logger(fmt.Sprintf("Downloaded workout %s", workout.EndomondoID))
+			e.logger.Info(fmt.Sprintf("Downloaded workout %s", workout.EndomondoID))
 			downloadedWorkouts = append(downloadedWorkouts, workout)
 		case err := <-workoutErrorChan:
-			e.logger(fmt.Sprintln("Err", err))
+			e.logger.Warning(fmt.Sprintln("Err", err))
 		}
 	}
 

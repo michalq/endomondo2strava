@@ -101,6 +101,34 @@ func (c *Client) ImportWorkout(upload UploadParameters) (*UploadResponse, error)
 	return nil, handleError(resp, respBody)
 }
 
+// GetUpload get upload status
+func (c *Client) GetUpload(uploadID string) (*GetUploadResponse, error) {
+	if c.auth == nil {
+		return nil, errors.New("not authorized to strava")
+	}
+	apiURL := fmt.Sprintf("%s/api/v3/uploads/%s", c.baseURL, uploadID)
+	req, _ := http.NewRequestWithContext(c.ctx, "GET", apiURL, nil)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.auth.AccessToken))
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusOK {
+		getUploadResponse := &GetUploadResponse{}
+		if err := json.Unmarshal(respBody, getUploadResponse); err != nil {
+			return nil, err
+		}
+		return getUploadResponse, nil
+	}
+
+	return nil, handleError(resp, respBody)
+}
+
 func handleError(response *http.Response, respBody []byte) error {
 	errorResp := &ErrorResponse{}
 	if err := json.Unmarshal(respBody, errorResp); err != nil {

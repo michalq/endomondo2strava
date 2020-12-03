@@ -19,6 +19,7 @@ const StravaRequestLimit = 100
 // ImportController controller for import
 type ImportController struct {
 	stravaUploader  *upload.StravaUploader
+	stravaVerifier  *upload.StravaVerifier
 	stravaClient    *strava.Client
 	reportGenerator *report.Generator
 	userManager     *users.Manager
@@ -28,12 +29,13 @@ type ImportController struct {
 // NewImportController creates new import controller instance
 func NewImportController(
 	stravaUploader *upload.StravaUploader,
+	stravaVerifier *upload.StravaVerifier,
 	stravaClient *strava.Client,
 	reportGenerator *report.Generator,
 	userManager *users.Manager,
 	usersRepository users.Users,
 ) *ImportController {
-	return &ImportController{stravaUploader, stravaClient, reportGenerator, userManager, usersRepository}
+	return &ImportController{stravaUploader, stravaVerifier, stravaClient, reportGenerator, userManager, usersRepository}
 }
 
 // ImportInput input passed to import controller
@@ -45,7 +47,31 @@ type ImportInput struct {
 
 // ImportAction handles import data to strava
 func (i *ImportController) ImportAction(input ImportInput) {
-	user, err := i.userManager.FindOrCreate(input.UserID)
+	authorizedClient := i.authorizeStrava(input.UserID)
+
+	fmt.Println("Starting import")
+	_, err := i.stravaUploader.UploadAll(authorizedClient, StravaRequestLimit)
+	if err != nil {
+		fmt.Println(err)
+	}
+	report, err := i.reportGenerator.Generate()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	renderCliReport(report)
+}
+
+// VerifyAction verifies import
+func (i *ImportController) VerifyAction(input ImportInput) {
+	authorizedClient := i.authorizeStrava(input.UserID)
+	err := i.stravaVerifier.Verify(authorizedClient, StravaRequestLimit)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func (i *ImportController) authorizeStrava(userID string) *strava.Client {
+	user, err := i.userManager.FindOrCreate(userID)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -80,16 +106,5 @@ func (i *ImportController) ImportAction(input ImportInput) {
 	if err := i.usersRepository.Update(user); err != nil {
 		log.Fatalf("Cannot update user (%s)", err)
 	}
-
-	fmt.Println("Starting import")
-	_, err = i.stravaUploader.UploadAll(authorizedClient, StravaRequestLimit)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// TODO verify started import whether ended
-	report, err := i.reportGenerator.Generate()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	renderCliReport(report)
+	return authorizedClient
 }

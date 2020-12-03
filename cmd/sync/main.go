@@ -34,17 +34,9 @@ var (
 	httpClient = &http.Client{}
 )
 
-// StdOutLogger logger that prints simple in std out
-type StdOutLogger struct{}
-
-// Info log information
-func (StdOutLogger) Info(l string) {
-	fmt.Println(l)
-}
-
 func main() {
 	// Loading input
-	fmt.Println("Endomondo 2 Strava synchronizer.\n")
+	fmt.Println("Endomondo 2 Strava synchronizer.")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -63,8 +55,7 @@ func main() {
 	}
 
 	// Loading deps
-	// logger := &StdOutLogger{}
-	simpleLogger := func(l string) { fmt.Println(l) }
+	logger := &controllers.StdOutLogger{}
 	db, err := sql.Open("sqlite3", "file:./tmp/db.sqlite")
 	if err != nil {
 		log.Fatalf("Database connection failed (%s).\n", err)
@@ -73,13 +64,14 @@ func main() {
 	usersRepository := dal.NewUsers(db)
 	endomondoClient := endomondo.NewClient(ctx, httpClient, "https://www.endomondo.com")
 	stravaClient := strava.NewClient(ctx, httpClient, "https://www.strava.com", config.stravaClientID, config.stravaClientSecret)
-	endomondoExporter := export.NewExporter(export.NewDownloader(filesPath, simpleLogger), workoutsRepository, usersRepository, simpleLogger)
-	stravaImporter := upload.NewStravaUploader(workoutsRepository, simpleLogger)
+	endomondoExporter := export.NewExporter(export.NewDownloader(filesPath, logger), workoutsRepository, usersRepository, logger)
+	stravaImporter := upload.NewStravaUploader(workoutsRepository, logger)
+	stravaVerifier := upload.NewStravaVerifier(workoutsRepository, logger)
 	usersManager := users.NewManager(usersRepository)
 	exportOrchestrator := export.NewOrchestrator(endomondoExporter, usersRepository)
 	reportGenerator := report.NewGenerator(workoutsRepository)
 	exportController := controllers.NewExportController(endomondoClient, usersManager, reportGenerator, exportOrchestrator)
-	importController := controllers.NewImportController(stravaImporter, stravaClient, reportGenerator, usersManager, usersRepository)
+	importController := controllers.NewImportController(stravaImporter, stravaVerifier, stravaClient, reportGenerator, usersManager, usersRepository)
 
 	if err := migration.Migrate(db); err != nil {
 		log.Fatalf("Migrations fail (%s).", err)
@@ -98,6 +90,12 @@ func main() {
 
 	if config.action.Has(controllers.ActionImport) {
 		importController.ImportAction(controllers.ImportInput{
+			ClientID: config.stravaClientID, ClientSecret: config.stravaClientSecret,
+		})
+	}
+
+	if config.action.Has(controllers.ActionVerifyImport) {
+		importController.VerifyAction(controllers.ImportInput{
 			ClientID: config.stravaClientID, ClientSecret: config.stravaClientSecret,
 		})
 	}

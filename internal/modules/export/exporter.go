@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/michalq/endo2strava/internal/modules/common"
 	"github.com/michalq/endo2strava/internal/modules/users"
 
 	"github.com/michalq/endo2strava/internal/modules/workouts"
@@ -25,11 +26,11 @@ type Exporter struct {
 	endomondoDownloader *Downloader
 	workoutsRepository  workouts.Workouts
 	usersRepository     users.Users
-	logger              func(l string)
+	logger              common.Logger
 }
 
 // NewExporter creates new instance of Exporter
-func NewExporter(endomondoDownloader *Downloader, workoutsRepository workouts.Workouts, usersRepository users.Users, logger func(l string)) *Exporter {
+func NewExporter(endomondoDownloader *Downloader, workoutsRepository workouts.Workouts, usersRepository users.Users, logger common.Logger) *Exporter {
 	return &Exporter{endomondoDownloader, workoutsRepository, usersRepository, logger}
 }
 
@@ -125,9 +126,9 @@ func (e *Exporter) FindWorkoutsDetails(authorizedClient *endomondo.Client) error
 		select {
 		case workout := <-workoutsChan:
 			processed = append(processed, workout)
-			e.logger(fmt.Sprintf("Found details for %s", workout.EndomondoID))
+			e.logger.Info(fmt.Sprintf("Found details for %s", workout.EndomondoID))
 		case err := <-workoutErrChan:
-			e.logger(fmt.Sprintln("Err", err))
+			e.logger.Warning(fmt.Sprintln("Err", err))
 		}
 	}
 	if err := e.workoutsRepository.SaveAll(processed); err != nil {
@@ -153,18 +154,20 @@ func (e *Exporter) fetchAllWorkoutsByPage(authorizedClient *endomondo.Client, wo
 		}(workoutsResponseChan, errChan, page)
 	}
 
+	errCollection := common.NewErrorCollection()
 	for page := 0; page < pages; page++ {
 		select {
 		case workoutsResponse := <-workoutsResponseChan:
 			for _, workout := range workoutsResponse.Data {
 				allWorkouts = append(allWorkouts, workouts.Workout{EndomondoID: strconv.FormatInt(workout.ID, 10)})
 			}
-		case _ = <-errChan:
-			//
+		case err := <-errChan:
+			e.logger.Warning(err.Error())
+			errCollection.Append(err)
 		}
 	}
 
-	return allWorkouts, nil
+	return allWorkouts, errCollection
 }
 
 func (e *Exporter) fetchWorkouts(authorizedClient *endomondo.Client, offset, limit int) (*endomondo.WorkoutsResponse, error) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/michalq/endo2strava/internal/modules/common"
 	"github.com/michalq/endo2strava/internal/modules/workouts"
 	"github.com/michalq/endo2strava/pkg/strava-client"
 )
@@ -21,11 +22,11 @@ type Status struct {
 // StravaUploader uploads workouts into strava
 type StravaUploader struct {
 	workoutsRepository workouts.Workouts
-	logger             func(string)
+	logger             common.Logger
 }
 
 // NewStravaUploader creates instance of StravaUploader
-func NewStravaUploader(workoutsRepository workouts.Workouts, logger func(string)) *StravaUploader {
+func NewStravaUploader(workoutsRepository workouts.Workouts, logger common.Logger) *StravaUploader {
 	return &StravaUploader{workoutsRepository, logger}
 }
 
@@ -68,15 +69,15 @@ func (s *StravaUploader) uploadMany(authorizedClient *strava.Client, workoutsToU
 		go s.uploadSingleWorkout(authorizedClient, workout, uploadedChan, errorsChan)
 	}
 	var uploaded []workouts.Workout
-	var errCollection = NewErrorCollection()
+	var errCollection = common.NewErrorCollection()
 	for range workoutsToUpload {
 		select {
 		case workout := <-uploadedChan:
 			uploaded = append(uploaded, workout)
-			s.logger(fmt.Sprintf("Send workout to strava, endomondo id %s, strava id %s", workout.EndomondoID, workout.StravaID))
+			s.logger.Info(fmt.Sprintf("Send workout to strava, endomondo id %s, strava id %s", workout.EndomondoID, workout.StravaID))
 		case err := <-errorsChan:
 			// Collect errors, but don't stop rest of routines
-			s.logger(fmt.Sprintf("Error occured while uploading %s", err))
+			s.logger.Warning(fmt.Sprintf("Error occured while uploading %s", err))
 			errCollection.Append(err)
 		}
 	}
