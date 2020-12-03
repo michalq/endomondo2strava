@@ -154,7 +154,6 @@ func (e *Exporter) fetchAllWorkoutsByPage(authorizedClient *endomondo.Client, wo
 		}(workoutsResponseChan, errChan, page)
 	}
 
-	errCollection := common.NewErrorCollection()
 	for page := 0; page < pages; page++ {
 		select {
 		case workoutsResponse := <-workoutsResponseChan:
@@ -163,11 +162,10 @@ func (e *Exporter) fetchAllWorkoutsByPage(authorizedClient *endomondo.Client, wo
 			}
 		case err := <-errChan:
 			e.logger.Warning(err.Error())
-			errCollection.Append(err)
 		}
 	}
 
-	return allWorkouts, errCollection
+	return allWorkouts, nil
 }
 
 func (e *Exporter) fetchWorkouts(authorizedClient *endomondo.Client, offset, limit int) (*endomondo.WorkoutsResponse, error) {

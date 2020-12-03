@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -104,6 +105,9 @@ func (c *Client) ExportWorkout(workoutID int64, format string) (io.ReadCloser, e
 	resp, err := c.makeGETRequest(fmt.Sprintf("%s/rest/v1/users/%d/workouts/%d/export?%s", c.baseURL, c.userID, workoutID, query.Encode()))
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("non 200 status code when downloading workout")
 	}
 
 	return resp.Body, err

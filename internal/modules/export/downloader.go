@@ -82,10 +82,10 @@ func (e *Downloader) downloadWorkout(authorizedClient *endomondo.Client, format 
 		return nil, err
 	}
 	workoutBuf, err := authorizedClient.ExportWorkout(workoutID, format)
-	defer workoutBuf.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer workoutBuf.Close()
 	fullPath := fmt.Sprintf("%s/%s.%s", e.workoutsPath, workout.EndomondoID, strings.ToLower(format))
 	out, err := os.Create(fullPath)
 	if err != nil {
