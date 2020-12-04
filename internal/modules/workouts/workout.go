@@ -8,17 +8,31 @@ import (
 // Workout represents single workout
 type Workout struct {
 	EndomondoID string
-	StravaID    string
-	Path        string
+	// StravaID upload ID, it is not workout ID
+	StravaID string
+	// Path where is saved workout file
+	Path string
+	// Ext extension of workout
 	Ext         string
 	Title       string
 	Description string
-	Hashtags    string
-	Pictures    string
+	// Hashtags comma separated hashtags
+	Hashtags string
+	// Pictures comma separated pictures
+	Pictures string
 	// DetailsExported flag if workout details were exported
 	DetailsExported int
-	UploadStarted   int
-	UploadEnded     int
+	// UploadStarted flag if upload was started
+	UploadStarted int
+	// UploadEnded flag if upload was ended
+	UploadEnded int
+
+	// StravaActivityID real workout id that is filled after verification
+	StravaActivityID string
+	// StravaStatus text message from verification if success
+	StravaStatus string
+	// StravaError text message from verification if error
+	StravaError string
 }
 
 // HashtagsList returns hashtags as an array of string
