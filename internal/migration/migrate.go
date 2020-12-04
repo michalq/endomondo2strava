@@ -14,6 +14,9 @@ var migrations []string = []string{
 		description TEXT NOT NULL DEFAULT "",
 		hashtags TEXT NOT NULL DEFAULT "",
 		pictures TEXT NOT NULL DEFAULT "",
+		strava_activity_id TEXT NOT NULL DEFAULT "",
+		strava_status TEXT NOT NULL DEFAULT "",
+		strava_error TEXT NOT NULL DEFAULT "",
 		details_exported INTEGER NOT NULL DEFAULT 0
 	)`,
 	`CREATE TABLE IF NOT EXISTS users (

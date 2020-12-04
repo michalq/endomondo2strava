@@ -38,7 +38,7 @@ func (w *Workouts) SaveAll(workouts []workouts.Workout) error {
 
 // FindAll finds all workouts in db
 func (w *Workouts) FindAll() ([]workouts.Workout, error) {
-	rows, err := w.db.Query("SELECT endomondo_id, strava_id, path, ext, upload_started, upload_ended, title, description, hashtags, pictures, details_exported FROM workouts")
+	rows, err := w.db.Query("SELECT endomondo_id, strava_id, path, ext, upload_started, upload_ended, title, description, hashtags, pictures, details_exported, strava_activity_id, strava_status, strava_error FROM workouts")
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (w *Workouts) FindAll() ([]workouts.Workout, error) {
 	allWorkouts := []workouts.Workout{}
 	for rows.Next() {
 		var workout workouts.Workout
-		err = rows.Scan(&workout.EndomondoID, &workout.StravaID, &workout.Path, &workout.Ext, &workout.UploadStarted, &workout.UploadEnded, &workout.Title, &workout.Description, &workout.Hashtags, &workout.Pictures, &workout.DetailsExported)
+		err = rows.Scan(&workout.EndomondoID, &workout.StravaID, &workout.Path, &workout.Ext, &workout.UploadStarted, &workout.UploadEnded, &workout.Title, &workout.Description, &workout.Hashtags, &workout.Pictures, &workout.DetailsExported, &workout.StravaActivityID, &workout.StravaStatus, &workout.StravaError)
 		if err != nil {
 			return nil, err
 		}
@@ -58,15 +58,15 @@ func (w *Workouts) FindAll() ([]workouts.Workout, error) {
 
 // Save saves single workout in db
 func (w *Workouts) Save(workout *workouts.Workout) error {
-	stmt, _ := w.db.Prepare("INSERT INTO workouts (endomondo_id, strava_id, path, ext, upload_started, upload_ended, title, description, hashtags, pictures, details_exported) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-	_, err := stmt.Exec(workout.EndomondoID, workout.StravaID, workout.Path, workout.Ext, workout.UploadStarted, workout.UploadEnded, workout.Title, workout.Description, workout.Hashtags, workout.Pictures, workout.DetailsExported)
+	stmt, _ := w.db.Prepare("INSERT INTO workouts (endomondo_id, strava_id, path, ext, upload_started, upload_ended, title, description, hashtags, pictures, details_exported, strava_activity_id, strava_status, strava_error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	_, err := stmt.Exec(workout.EndomondoID, workout.StravaID, workout.Path, workout.Ext, workout.UploadStarted, workout.UploadEnded, workout.Title, workout.Description, workout.Hashtags, workout.Pictures, workout.DetailsExported, workout.StravaActivityID, workout.StravaStatus, workout.StravaError)
 	return err
 }
 
 // Update saves single workout in db
 func (w *Workouts) Update(workout *workouts.Workout) error {
-	stmt, _ := w.db.Prepare("UPDATE workouts SET strava_id = ?, path = ?, ext = ?, upload_started = ?, upload_ended = ?, title = ?, description = ?, hashtags = ?, pictures = ?, details_exported = ? WHERE endomondo_id = ?")
-	_, err := stmt.Exec(workout.StravaID, workout.Path, workout.Ext, workout.UploadStarted, workout.UploadEnded, workout.Title, workout.Description, workout.Hashtags, workout.Pictures, workout.DetailsExported, workout.EndomondoID)
+	stmt, _ := w.db.Prepare("UPDATE workouts SET strava_id = ?, path = ?, ext = ?, upload_started = ?, upload_ended = ?, title = ?, description = ?, hashtags = ?, pictures = ?, details_exported = ?, strava_activity_id=?, strava_status=?, strava_error=? WHERE endomondo_id = ?")
+	_, err := stmt.Exec(workout.StravaID, workout.Path, workout.Ext, workout.UploadStarted, workout.UploadEnded, workout.Title, workout.Description, workout.Hashtags, workout.Pictures, workout.DetailsExported, workout.StravaActivityID, workout.StravaStatus, workout.StravaError, workout.EndomondoID)
 	return err
 }
 
@@ -74,8 +74,8 @@ func (w *Workouts) Update(workout *workouts.Workout) error {
 func (w *Workouts) FindOneByEndomondoID(endomondoID string) (*workouts.Workout, error) {
 	workout := &workouts.Workout{}
 	err := w.db.
-		QueryRow("SELECT endomondo_id, strava_id, path, ext, upload_started, upload_ended, title, description, hashtags, pictures, details_exported FROM workouts WHERE endomondo_id=?", endomondoID).
-		Scan(&workout.EndomondoID, &workout.StravaID, &workout.Path, &workout.Ext, &workout.UploadStarted, &workout.UploadEnded, &workout.Title, &workout.Description, &workout.Hashtags, &workout.Pictures, &workout.DetailsExported)
+		QueryRow("SELECT endomondo_id, strava_id, path, ext, upload_started, upload_ended, title, description, hashtags, pictures, details_exported, strava_activity_id, strava_status, strava_error FROM workouts WHERE endomondo_id=?", endomondoID).
+		Scan(&workout.EndomondoID, &workout.StravaID, &workout.Path, &workout.Ext, &workout.UploadStarted, &workout.UploadEnded, &workout.Title, &workout.Description, &workout.Hashtags, &workout.Pictures, &workout.DetailsExported, &workout.StravaActivityID, &workout.StravaStatus, &workout.StravaError)
 
 	switch {
 	case err == sql.ErrNoRows:

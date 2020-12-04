@@ -108,10 +108,13 @@ Endomondo doesn't have limitations so probably you will be able to download all 
 
     It tracks in sqlite what was imported, and what not, so shouldn't. Strava seems to have also a security check for uploading same workouts many times. 
 
+# Known problems
+
+1. Simple workouts without tracking points are treated as "empty file by strava"
+
 # TODO
 
-1. Dockerize it,
-2. Verification if import ended
+1. Dockerize it
 
 # Changelog
 
