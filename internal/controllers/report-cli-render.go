@@ -23,11 +23,23 @@ func renderCliReport(summary *report.Report) {
 	} else {
 		downloadedQuantity = color.GreenString(strconv.Itoa(summary.Downloaded))
 	}
-	var importedQuantity string
-	if summary.FoundWorkouts > summary.Imported {
-		importedQuantity = color.RedString(strconv.Itoa(summary.Imported))
+	var importStartedQuantity string
+	if summary.FoundWorkouts > summary.ImportStarted {
+		importStartedQuantity = color.RedString(strconv.Itoa(summary.ImportStarted))
 	} else {
-		importedQuantity = color.GreenString(strconv.Itoa(summary.Imported))
+		importStartedQuantity = color.GreenString(strconv.Itoa(summary.ImportStarted))
+	}
+	var importEndedQuantity string
+	if summary.FoundWorkouts > summary.Imported {
+		importEndedQuantity = color.RedString(strconv.Itoa(summary.Imported))
+	} else {
+		importEndedQuantity = color.GreenString(strconv.Itoa(summary.Imported))
+	}
+	var importVerifiedQuantity string
+	if summary.FoundWorkouts > summary.Verified {
+		importVerifiedQuantity = color.RedString(strconv.Itoa(summary.Verified))
+	} else {
+		importVerifiedQuantity = color.GreenString(strconv.Itoa(summary.Verified))
 	}
 	fmt.Printf(
 		"----------------------------\n"+
@@ -39,12 +51,18 @@ func renderCliReport(summary *report.Report) {
 			"----------------------------\n"+
 			"Downloaded workouts\t%s\n"+
 			"----------------------------\n"+
-			"Imported workouts\t%s\n"+
+			"Sent to import\t\t%s\n"+
+			"----------------------------\n"+
+			"Imported\t\t%s\n"+
+			"----------------------------\n"+
+			"Verified\t\t%s\n"+
 			"----------------------------\n",
 		color.GreenString(strconv.Itoa(summary.FoundWorkouts)),
 		foundDetails,
 		foundPhotos,
 		downloadedQuantity,
-		importedQuantity,
+		importStartedQuantity,
+		importEndedQuantity,
+		importVerifiedQuantity,
 	)
 }

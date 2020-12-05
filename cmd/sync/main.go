@@ -72,7 +72,7 @@ func main() {
 	reportGenerator := report.NewGenerator(workoutsRepository)
 	exportController := controllers.NewExportController(endomondoClient, usersManager, reportGenerator, exportOrchestrator)
 	importController := controllers.NewImportController(stravaImporter, stravaVerifier, stravaClient, reportGenerator, usersManager, usersRepository)
-
+	reportController := controllers.NewReportController(reportGenerator)
 	if err := migration.Migrate(db); err != nil {
 		log.Fatalf("Migrations fail (%s).", err)
 	}
@@ -87,16 +87,17 @@ func main() {
 			Email: config.endomondoEmail, Pass: config.endomondoPass, Format: config.endomondoExportFormat,
 		})
 	}
-
 	if config.action.Has(controllers.ActionImport) {
 		importController.ImportAction(controllers.ImportInput{
 			ClientID: config.stravaClientID, ClientSecret: config.stravaClientSecret,
 		})
 	}
-
 	if config.action.Has(controllers.ActionVerifyImport) {
 		importController.VerifyAction(controllers.ImportInput{
 			ClientID: config.stravaClientID, ClientSecret: config.stravaClientSecret,
 		})
+	}
+	if config.action.Has(controllers.ActionReport) {
+		reportController.ReportAction()
 	}
 }
