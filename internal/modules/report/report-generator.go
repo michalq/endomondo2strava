@@ -29,8 +29,14 @@ func (g *Generator) Generate() (*Report, error) {
 		if workout.DetailsExported != 0 {
 			report.FoundDetails++
 		}
-		if workout.StravaID != "" {
+		if workout.StravaActivityID != "" {
 			report.Imported++
+		}
+		if workout.StravaID != "" {
+			report.ImportStarted++
+		}
+		if workout.StravaStatus != "" {
+			report.Verified++
 		}
 	}
 	report.FoundWorkouts = len(workouts)

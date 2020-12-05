@@ -23,4 +23,6 @@ const (
 	ActionImport SynchronizationAction = "import"
 	// ActionVerifyImport verification
 	ActionVerifyImport SynchronizationAction = "verify"
+	// ActionReport shows report
+	ActionReport SynchronizationAction = "report"
 )

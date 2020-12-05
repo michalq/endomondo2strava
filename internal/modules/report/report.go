@@ -7,4 +7,6 @@ type Report struct {
 	FoundPhotos   int
 	Downloaded    int
 	Imported      int
+	ImportStarted int
+	Verified      int
 }
