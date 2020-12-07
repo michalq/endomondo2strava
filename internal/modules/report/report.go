@@ -9,4 +9,5 @@ type Report struct {
 	Imported      int
 	ImportStarted int
 	Verified      int
+	ImportErrors  int
 }

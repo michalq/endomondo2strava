@@ -38,6 +38,9 @@ func (g *Generator) Generate() (*Report, error) {
 		if workout.StravaStatus != "" {
 			report.Verified++
 		}
+		if workout.StravaError != "" {
+			report.ImportErrors++
+		}
 	}
 	report.FoundWorkouts = len(workouts)
 	return report, nil

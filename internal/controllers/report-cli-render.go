@@ -41,6 +41,12 @@ func renderCliReport(summary *report.Report) {
 	} else {
 		importVerifiedQuantity = color.GreenString(strconv.Itoa(summary.Verified))
 	}
+	var importErrors string
+	if summary.ImportErrors == 0 {
+		importErrors = color.BlueString(strconv.Itoa(summary.ImportErrors))
+	} else {
+		importErrors = color.RedString(strconv.Itoa(summary.ImportErrors))
+	}
 	fmt.Printf(
 		"----------------------------\n"+
 			"Found workouts\t\t%s\n"+
@@ -56,6 +62,8 @@ func renderCliReport(summary *report.Report) {
 			"Imported\t\t%s\n"+
 			"----------------------------\n"+
 			"Verified\t\t%s\n"+
+			"----------------------------\n"+
+			"Import errors\t\t%s\n"+
 			"----------------------------\n",
 		color.GreenString(strconv.Itoa(summary.FoundWorkouts)),
 		foundDetails,
@@ -64,5 +72,6 @@ func renderCliReport(summary *report.Report) {
 		importStartedQuantity,
 		importEndedQuantity,
 		importVerifiedQuantity,
+		importErrors,
 	)
 }
